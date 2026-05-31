@@ -596,11 +596,14 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
       <div style="font-size:2.5rem;margin-bottom:8px">👩‍🏫</div>
       <div style="font-family:'Pacifico',cursive;font-size:1.4rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Acceso Docente</div>
       <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:22px">Inicia sesión con tu cuenta</p>
-      <input id="teacher-email-input" type="email" placeholder="Correo electrónico"
-        style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:10px;box-sizing:border-box;"
-        onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
-        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
-        onkeydown="if(event.key==='Enter')document.getElementById('teacher-pass-input').focus()">
+      <div style="position:relative;margin-bottom:10px">
+        <input id="teacher-email-input" type="text" placeholder="usuario"
+          style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:150px;"
+          onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
+          onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+          onkeydown="if(event.key==='Enter')document.getElementById('teacher-pass-input').focus()">
+        <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.8rem;color:#A99EBD;pointer-events:none">@master.blackai.com</span>
+      </div>
       <input id="teacher-pass-input" type="password" placeholder="Contraseña"
         style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box;"
         onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
@@ -635,27 +638,17 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
   </div>
 </div>
 
-<!-- MODAL: ingresar a sesión — login con Firebase Auth -->
+<!-- MODAL: ingresar a sesión — solo tarjetas + contraseña -->
 <div class="modal-overlay" id="modal-join-session">
   <div class="modal-box" style="max-width:400px;text-align:center;background:white">
     <div id="join-session-icon" style="font-size:2.8rem;margin-bottom:8px">🌸</div>
     <div id="join-session-name" style="font-family:'Pacifico',cursive;font-size:1.3rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Equipo 1</div>
-    <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:16px">Inicia sesión con tu cuenta</p>
-    <!-- Students of this session -->
-    <div id="join-session-students" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
-    <!-- Email input with @blackai.com autofill -->
-    <div style="position:relative;margin-bottom:10px">
-      <input id="join-email-input" type="text" placeholder="nombre"
-        style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:120px;"
-        onfocus="this.style.borderColor='#FF8FA3';this.style.background='white'"
-        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
-        oninput="updateEmailPreview()"
-        onkeydown="if(event.key==='Enter')document.getElementById('join-pass-input').focus()">
-      <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:.84rem;color:#A99EBD;pointer-events:none">@blackai.com</span>
-    </div>
-    <div id="join-email-preview" style="font-size:.75rem;color:#A99EBD;margin-bottom:10px;height:16px"></div>
+    <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:14px">Inicia sesión con tu cuenta</p>
+    <!-- Tarjetas de alumnas de esta sesión -->
+    <div id="join-session-students" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+    <!-- Solo contraseña -->
     <input id="join-pass-input" type="password" placeholder="Contraseña"
-      style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box;"
+      style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:10px;box-sizing:border-box;"
       onfocus="this.style.borderColor='#FF8FA3';this.style.background='white'"
       onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
       onkeydown="if(event.key==='Enter')doJoinSession()">
@@ -933,7 +926,7 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
         <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Correo electrónico</label>
         <div style="position:relative;margin-bottom:12px">
           <input id="st-email" placeholder="nombre" style="width:100%;padding:10px 14px;border-radius:11px;border:2px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.88rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:110px">
-          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.8rem;color:#A99EBD;pointer-events:none">@blackai.com</span>
+          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.8rem;color:#A99EBD;pointer-events:none">@student.blackai.com</span>
         </div>
         <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Contraseña</label>
         <div style="position:relative;margin-bottom:12px">
@@ -1472,98 +1465,120 @@ function renderLobby(sessions){
 
 let pendingSessionId=null, pendingSession=null;
 /* ══ MODAL SESIÓN — muestra alumnas asignadas, login con Firebase Auth ══ */
-function updateEmailPreview(){
-  const val=(document.getElementById("join-email-input")?.value||"").trim().toLowerCase().replace(/\s+/g,"");
-  const preview=document.getElementById("join-email-preview");
-  if(preview) preview.textContent=val?(val.includes("@")?val:val+"@blackai.com"):"";
-}
+/* ══ MODAL SESIÓN — tarjetas clickeables, solo contraseña ══ */
+let _selectedStudentEmail = null;
 
-function openJoinModal(id,s){
+function openJoinModal(id, s){
   pendingSessionId=id; pendingSession=s;
+  _selectedStudentEmail=null;
   document.getElementById("join-session-icon").textContent=s.icon;
   document.getElementById("join-session-name").textContent=s.nombre;
   document.getElementById("join-session-err").style.display="none";
-  document.getElementById("join-email-input").value="";
   document.getElementById("join-pass-input").value="";
-  document.getElementById("join-email-preview").textContent="";
-  // Show only students assigned to this session
+
   const studentsDiv=document.getElementById("join-session-students");
+  studentsDiv.innerHTML=`<div style="text-align:center;padding:10px;color:#A99EBD;font-size:.8rem">⏳ Cargando...</div>`;
+
   const alumnos=s.alumnos||[];
-  if(studentsDiv){
-    if(alumnos.length>0){
-      studentsDiv.innerHTML=`<p style="font-size:.75rem;color:#A99EBD;margin-bottom:6px;text-align:center">Selecciona tu nombre:</p>`;
-      alumnos.forEach(aid=>{
-        // Try ALL_STUDENTS first, then Firebase
-        const st=ALL_STUDENTS.find(x=>x.id===aid);
-        const firstName=st?st.firstName:(aid.charAt(0).toUpperCase()+aid.slice(1));
-        const emailUser=st?(st.firstName||aid).toLowerCase():aid.toLowerCase();
-        const card=document.createElement("div");
-        card.style.cssText="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:11px;border:1.5px solid rgba(255,143,163,.2);background:#FFFBF0;cursor:pointer;transition:all .2s;margin-bottom:5px";
-        card.onmouseenter=()=>{card.style.background="rgba(255,143,163,.08)";card.style.borderColor="var(--accent)";};
-        card.onmouseleave=()=>{card.style.background="#FFFBF0";card.style.borderColor="rgba(255,143,163,.2)";};
-        card.onclick=()=>{
-          document.getElementById("join-email-input").value=emailUser;
-          updateEmailPreview();
-          document.getElementById("join-pass-input").focus();
-          // Highlight selected
-          studentsDiv.querySelectorAll("[data-student]").forEach(c=>{c.style.borderColor="rgba(255,143,163,.2)";c.style.background="#FFFBF0";});
-          card.style.borderColor="var(--accent)";card.style.background="rgba(255,143,163,.12)";
-        };
-        card.dataset.student=aid;
-        card.innerHTML=`<div style="width:34px;height:34px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.85rem;flex-shrink:0">${firstName[0]}</div>
-          <div style="text-align:left">
-            <div style="font-size:.88rem;font-weight:700;color:#4A3F5C">${firstName}</div>
-            <div style="font-size:.7rem;color:#A99EBD">${emailUser}@blackai.com</div>
-          </div>`;
-        studentsDiv.appendChild(card);
-      });
-      studentsDiv.style.display="block";
-    } else {
-      studentsDiv.innerHTML="";
-      studentsDiv.style.display="none";
-    }
+  if(alumnos.length===0){
+    studentsDiv.innerHTML=`<p style="font-size:.8rem;color:#A99EBD">No hay alumnas asignadas a esta sesión.</p>`;
+    oM("modal-join-session");
+    return;
   }
-  oM("modal-join-session");
-  setTimeout(()=>document.getElementById("join-email-input")?.focus(),300);
+
+  // Load student profiles from Firebase to get real names
+  const promises=alumnos.map(aid=>
+    db.ref("pedagogia/alumnos").orderByChild("id").equalTo(aid).once("value").then(snap=>{
+      const val=snap.val();
+      if(val){
+        const uid=Object.keys(val)[0];
+        return {uid, ...val[uid]};
+      }
+      // Fallback to ALL_STUDENTS list
+      const st=ALL_STUDENTS.find(x=>x.id===aid);
+      if(st) return {id:aid, firstName:st.firstName, nombre:st.nombre, email:(st.firstName||aid).toLowerCase()+"@student.blackai.com"};
+      return null;
+    }).catch(()=>{
+      const st=ALL_STUDENTS.find(x=>x.id===aid);
+      if(st) return {id:aid, firstName:st.firstName, nombre:st.nombre, email:(st.firstName||aid).toLowerCase()+"@student.blackai.com"};
+      return null;
+    })
+  );
+
+  Promise.all(promises).then(students=>{
+    studentsDiv.innerHTML=`<p style="font-size:.75rem;color:#A99EBD;margin-bottom:8px;text-align:center">Selecciona tu nombre:</p>`;
+    students.filter(Boolean).forEach(st=>{
+      const firstName=st.firstName||(st.nombre||"").split(" ")[2]||(st.nombre||"").split(" ")[0]||st.id;
+      const email=st.email||(firstName.toLowerCase()+"@student.blackai.com");
+      const card=document.createElement("div");
+      card.style.cssText="display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;border:2px solid rgba(255,143,163,.2);background:#FFFBF0;cursor:pointer;transition:all .2s;";
+      card.onclick=()=>{
+        // Deselect all
+        studentsDiv.querySelectorAll("[data-student]").forEach(c=>{
+          c.style.borderColor="rgba(255,143,163,.2)";
+          c.style.background="#FFFBF0";
+          c.querySelector(".check-icon").style.opacity="0";
+        });
+        // Select this one
+        card.style.borderColor="var(--accent)";
+        card.style.background="rgba(255,143,163,.08)";
+        card.querySelector(".check-icon").style.opacity="1";
+        _selectedStudentEmail=email;
+        document.getElementById("join-pass-input").focus();
+      };
+      card.dataset.student=st.id||st.uid;
+      card.innerHTML=`
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.9rem;flex-shrink:0">${firstName[0].toUpperCase()}</div>
+        <div style="flex:1;text-align:left">
+          <div style="font-size:.9rem;font-weight:800;color:#4A3F5C">${firstName}</div>
+          <div style="font-size:.7rem;color:#A99EBD">${email}</div>
+        </div>
+        <span class="check-icon" style="opacity:0;color:var(--accent);font-size:1.1rem;transition:opacity .2s">✓</span>`;
+      studentsDiv.appendChild(card);
+    });
+    oM("modal-join-session");
+  });
 }
 
 function doJoinSession(){
-  const emailRaw=(document.getElementById("join-email-input")?.value||"").trim().toLowerCase().replace(/\s+/g,"");
   const pass=document.getElementById("join-pass-input")?.value||"";
   const errEl=document.getElementById("join-session-err");
-  if(!emailRaw){errEl.style.display="block";errEl.textContent="⚠️ Selecciona tu nombre o escribe tu correo";return;}
-  if(!pass){errEl.style.display="block";errEl.textContent="⚠️ Ingresa tu contraseña";return;}
-  const email=emailRaw.includes("@")?emailRaw:emailRaw+"@blackai.com";
+  if(!_selectedStudentEmail){
+    errEl.style.display="block";
+    errEl.textContent="⚠️ Selecciona tu nombre primero";
+    return;
+  }
+  if(!pass){
+    errEl.style.display="block";
+    errEl.textContent="⚠️ Ingresa tu contraseña";
+    return;
+  }
   errEl.style.display="none";
   // Sign in with Firebase Auth
-  auth.signInWithEmailAndPassword(email,pass).then(cred=>{
+  auth.signInWithEmailAndPassword(_selectedStudentEmail, pass).then(cred=>{
     const uid=cred.user.uid;
-    // Load student profile from Firebase
     db.ref("pedagogia/alumnos/"+uid).once("value").then(snap=>{
       const studentData=snap.val()||{};
-      const firstName=studentData.firstName||email.split("@")[0].toUpperCase();
-      const studentId=studentData.id||emailRaw;
-      // Verify assigned to this session
-      const alumnos=pendingSession.alumnos||[];
-      if(alumnos.length>0&&studentId&&!alumnos.includes(studentId)){
-        errEl.style.display="block";errEl.textContent="⚠️ No estás asignada a esta sesión.";
-        auth.signOut();return;
-      }
+      const firstName=studentData.firstName||_selectedStudentEmail.split("@")[0].toUpperCase();
       cM("modal-join-session");
       currentSession={id:pendingSessionId,...pendingSession};
-      currentMember={name:firstName,uid,joinedAt:Date.now()};
+      currentMember={name:firstName, uid, joinedAt:Date.now()};
       isTeacher=false;
       enterApp();
     });
   }).catch(e=>{
     errEl.style.display="block";
-    errEl.textContent=(e.code==="auth/user-not-found"||e.code==="auth/wrong-password"||e.code==="auth/invalid-credential")
-      ?"⚠️ Correo o contraseña incorrectos":"⚠️ "+e.message;
+    errEl.textContent=(e.code==="auth/wrong-password"||e.code==="auth/invalid-credential")
+      ?"⚠️ Contraseña incorrecta"
+      :(e.code==="auth/user-not-found")
+      ?"⚠️ Esta alumna no tiene cuenta aún. Pide al docente que la cree."
+      :"⚠️ "+e.message;
   });
 }
 
 function doTeacherLogin(){
-  const email=document.getElementById("teacher-email-input").value.trim();
+  const emailRaw=document.getElementById("teacher-email-input").value.trim().toLowerCase();
+  const email=emailRaw.includes("@")?emailRaw:emailRaw+"@master.blackai.com";
   const pass=document.getElementById("teacher-pass-input").value;
   const err=document.getElementById("teacher-login-err");
   if(!email||!pass){err.style.display="block";err.textContent="⚠️ Ingresa correo y contraseña";return;}
@@ -2134,7 +2149,7 @@ function openEditStudentModal(uid){
     document.getElementById("st-uid").value=uid;
     document.getElementById("st-nombre").value=a.nombre||"";
     document.getElementById("st-firstname").value=a.firstName||"";
-    document.getElementById("st-email").value=(a.email||"").replace("@blackai.com","");
+    document.getElementById("st-email").value=(a.email||"").replace("@student.blackai.com","");
     document.getElementById("st-email").dataset.manualEdit="1";
     document.getElementById("st-pass").value="";
     document.getElementById("st-error").style.display="none";
@@ -2157,7 +2172,7 @@ function saveStudent(){
   if(!nombre){errEl.textContent="⚠️ Ingresa el nombre completo";errEl.style.display="block";return;}
   if(!firstName){errEl.textContent="⚠️ Ingresa el nombre de pila";errEl.style.display="block";return;}
   if(!emailUser){errEl.textContent="⚠️ Ingresa el correo";errEl.style.display="block";return;}
-  const email=emailUser.includes("@")?emailUser:emailUser+"@blackai.com";
+  const email=emailUser.includes("@")?emailUser:emailUser+"@student.blackai.com";
   const btn=document.getElementById("st-save-btn");
   btn.textContent="⏳ Guardando...";btn.disabled=true;
   if(!uid){
