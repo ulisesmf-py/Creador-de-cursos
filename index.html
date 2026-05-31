@@ -960,13 +960,10 @@ firebase.initializeApp({
 const db=firebase.database();
 const auth=firebase.auth();
 
-/* Auth anónimo — se ejecuta una sola vez al cargar la página */
+/* Auth anónimo en background — no bloquea la UI */
 window._authReady=false;
-auth.signInAnonymously().catch(err=>console.warn("Auth:",err.message));
-auth.onAuthStateChanged(user=>{
-  window._authReady=!!user;
-  if(user) console.log("✅ Auth UID:",user.uid);
-});
+auth.onAuthStateChanged(user=>{ window._authReady=!!user; });
+auth.signInAnonymously().catch(err=>console.warn("Auth anónimo:",err.message));
 
 /* ══ CONFIGURACIÓN DE SESIONES ══ */
 /* Las sesiones se guardan en Firebase: /sesiones/{id}
@@ -3458,7 +3455,7 @@ function checkPQ(qi,oi,correcta){
 }
 function addForoPost(){const inp=document.getElementById("foro-preview-inp");if(!inp||!inp.value.trim())return;const posts=document.getElementById("foro-preview-posts");if(posts){const d=document.createElement("div");d.style.cssText="background:white;border-radius:10px;padding:10px 13px;margin-bottom:7px;border:1.5px solid rgba(212,184,255,.2);";d.innerHTML='<p style="font-size:.84rem;color:#4A3F5C">'+inp.value+'</p>';posts.appendChild(d);}inp.value="";}
 window.onload=()=>renderPreviewContent(__mods[0]);
-<\/script></body></html>`;
+<\/scr"+"ipt></body></html>`;
 }
 
 function closePreview(){
