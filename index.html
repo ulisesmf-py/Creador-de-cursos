@@ -849,8 +849,14 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
         <div style="font-family:'Pacifico',cursive;font-size:1.6rem;color:white;text-shadow:0 2px 8px rgba(0,0,0,.15)">👩‍🏫 Panel de la Docente</div>
         <p style="color:rgba(255,255,255,.85);font-size:.86rem;margin-top:3px">Monitorea, califica y retroalimenta el trabajo de cada equipo en tiempo real</p>
       </div>
-      <button onclick="loadTeacherDashboard()" style="padding:9px 20px;border-radius:12px;border:none;background:rgba(255,255,255,.25);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">🔄 Actualizar</button>
-      <button onclick="showActivityLog()" style="padding:9px 20px;border-radius:12px;border:none;background:rgba(255,255,255,.15);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">📋 Ver registro de actividad</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="openCreateStudentModal()"
+          style="padding:10px 22px;border-radius:12px;border:none;background:white;color:#9B72CF;font-family:'Nunito',sans-serif;font-weight:800;font-size:.88rem;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 2px 12px rgba(0,0,0,.12)">
+          👩‍🎓 ＋ Nueva alumna
+        </button>
+        <button onclick="loadTeacherDashboard()" style="padding:9px 20px;border-radius:12px;border:none;background:rgba(255,255,255,.25);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">🔄 Actualizar</button>
+        <button onclick="showActivityLog()" style="padding:9px 20px;border-radius:12px;border:none;background:rgba(255,255,255,.15);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">📋 Actividad</button>
+      </div>
     </div>
     <!-- Sesiones container -->
     <div id="teacher-sessions-container">
