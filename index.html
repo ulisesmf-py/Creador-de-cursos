@@ -967,18 +967,8 @@ auth.signInAnonymously().catch(err=>console.warn("Auth anónimo:",err.message));
 const TEACHER_PASS = "cuicalli666";
 
 /* ══ LISTA COMPLETA DE ALUMNAS ══ */
-const ALL_STUDENTS=[
-  {id:"grecia",   nombre:"ALBINO VAZQUEZ GRECIA VALERI",      firstName:"GRECIA"},
-  {id:"lluvia",   nombre:"FELIX BAUTISTA LLUVIA GLORIA",       firstName:"LLUVIA"},
-  {id:"diocelin", nombre:"FUENTES HERNANDEZ DIOCELIN MONSERRATH", firstName:"DIOCELIN"},
-  {id:"diana",    nombre:"MARTINEZ GARCIA DIANA SHARON",       firstName:"DIANA"},
-  {id:"perla",    nombre:"RAMOS ROSARIO PERLA VALERIA",        firstName:"PERLA"},
-  {id:"karen",    nombre:"RANGEL PILLADO KAREN YOALI",         firstName:"KAREN"},
-  {id:"brisa",    nombre:"RANZAHUER VELAZQUEZ BRISA EDITH",    firstName:"BRISA"},
-  {id:"josefina", nombre:"ROMAN GARCIA JOSEFINA",              firstName:"JOSEFINA"},
-  {id:"marianne", nombre:"SANCHEZ ESCALANTE MARIANNE GISSELLE",firstName:"MARIANNE"},
-  {id:"brenda",   nombre:"VELAZQUEZ HERNANDEZ BRENDA",         firstName:"BRENDA"},
-];
+// Students are loaded from Firebase /pedagogia/alumnos — not hardcoded
+const ALL_STUDENTS=[];
 
 /* Expanded icon set */
 const ALL_ICONS=["🌹","💜","🌿","☁️","🍑","⭐","🌻","🦋","🌙","🔥","💎","🎯","📚","🎨","🌈",
@@ -988,11 +978,11 @@ const ALL_ICONS=["🌹","💜","🌿","☁️","🍑","⭐","🌻","🦋","🌙"
 
 /* Default sessions — each holds exactly 2 assigned students (set by teacher) */
 const DEFAULT_SESSIONS = [
-  {id:"s1", nombre:"Equipo Rosas",   icon:"🌹", color:"linear-gradient(135deg,#FFBCCA,#FF8FA3)", pass:"rosas123",   design:"default", alumnos:["grecia","lluvia"]},
-  {id:"s2", nombre:"Equipo Lavanda", icon:"💜", color:"linear-gradient(135deg,#D4B8FF,#C77DFF)", pass:"lavanda123", design:"default", alumnos:["diocelin","diana"]},
-  {id:"s3", nombre:"Equipo Menta",   icon:"🌿", color:"linear-gradient(135deg,#B8F0D8,#4DD9AC)", pass:"menta123",   design:"default", alumnos:["perla","karen"]},
-  {id:"s4", nombre:"Equipo Cielo",   icon:"☁️", color:"linear-gradient(135deg,#B8DCFF,#5BA3F5)", pass:"cielo123",   design:"default", alumnos:["brisa","josefina"]},
-  {id:"s5", nombre:"Equipo Durazno", icon:"🍑", color:"linear-gradient(135deg,#FFD4B8,#FF9A76)", pass:"durazno123", design:"default", alumnos:["marianne","brenda"]},
+  {id:"s1", nombre:"Equipo Rosas",   icon:"🌹", color:"linear-gradient(135deg,#FFBCCA,#FF8FA3)", pass:"rosas123",   design:"default", alumnos:[]},
+  {id:"s2", nombre:"Equipo Lavanda", icon:"💜", color:"linear-gradient(135deg,#D4B8FF,#C77DFF)", pass:"lavanda123", design:"default", alumnos:[]},
+  {id:"s3", nombre:"Equipo Menta",   icon:"🌿", color:"linear-gradient(135deg,#B8F0D8,#4DD9AC)", pass:"menta123",   design:"default", alumnos:[]},
+  {id:"s4", nombre:"Equipo Cielo",   icon:"☁️", color:"linear-gradient(135deg,#B8DCFF,#5BA3F5)", pass:"cielo123",   design:"default", alumnos:[]},
+  {id:"s5", nombre:"Equipo Durazno", icon:"🍑", color:"linear-gradient(135deg,#FFD4B8,#FF9A76)", pass:"durazno123", design:"default", alumnos:[]},
   {id:"s6", nombre:"Equipo Coral",   icon:"🪸", color:"linear-gradient(135deg,#FFB5A7,#E87461)", pass:"coral123",   design:"default", alumnos:[]},
 ];
 
@@ -2252,33 +2242,41 @@ function saveStudentAssignment(sid,slot,studentId){
   });
 }
 function renderStudentAssigner(sid,alumnos,container){
-  const opts=`<option value="">— Sin asignar —</option>`+
-    ALL_STUDENTS.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join("");
-  const slot0=alumnos[0]||"";const slot1=alumnos[1]||"";
-  container.innerHTML=`
-    <p style="font-size:.76rem;font-weight:700;color:#7A6E8A;margin-bottom:8px">👩‍🎓 Alumnas asignadas (máx. 2):</p>
-    <div style="display:flex;flex-direction:column;gap:7px">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:.74rem;color:#A99EBD;width:20px">1.</span>
-        <select onchange="saveStudentAssignment('${sid}',0,this.value)"
-          style="flex:1;padding:5px 9px;border-radius:9px;border:1.5px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.8rem;color:#4A3F5C;background:white">
-          ${opts}
-        </select>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:.74rem;color:#A99EBD;width:20px">2.</span>
-        <select onchange="saveStudentAssignment('${sid}',1,this.value)"
-          style="flex:1;padding:5px 9px;border-radius:9px;border:1.5px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.8rem;color:#4A3F5C;background:white">
-          ${opts}
-        </select>
-      </div>
-    </div>`;
-  // Set current values
-  setTimeout(()=>{
-    const sels=container.querySelectorAll("select");
-    if(sels[0]&&slot0) sels[0].value=slot0;
-    if(sels[1]&&slot1) sels[1].value=slot1;
-  },50);
+  container.innerHTML=`<p style="font-size:.76rem;color:#A99EBD">⏳ Cargando alumnas...</p>`;
+  // Load students from Firebase
+  db.ref("pedagogia/alumnos").once("value").then(snap=>{
+    const data=snap.val()||{};
+    const students=Object.entries(data).map(([uid,a])=>({uid,id:a.id||uid,nombre:a.nombre||a.firstName||uid,firstName:a.firstName||a.nombre||uid}));
+    const slot0=alumnos[0]||"";
+    const slot1=alumnos[1]||"";
+    const opts=`<option value="">— Sin asignar —</option>`+
+      students.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join("");
+    container.innerHTML=`
+      <p style="font-size:.76rem;font-weight:700;color:#7A6E8A;margin-bottom:8px">👩‍🎓 Alumnas asignadas (máx. 2):</p>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:.74rem;color:#A99EBD;width:20px">1.</span>
+          <select onchange="saveStudentAssignment('${sid}',0,this.value)"
+            style="flex:1;padding:5px 9px;border-radius:9px;border:1.5px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.8rem;color:#4A3F5C;background:white">
+            ${opts}
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:.74rem;color:#A99EBD;width:20px">2.</span>
+          <select onchange="saveStudentAssignment('${sid}',1,this.value)"
+            style="flex:1;padding:5px 9px;border-radius:9px;border:1.5px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.8rem;color:#4A3F5C;background:white">
+            ${opts}
+          </select>
+        </div>
+      </div>`;
+    setTimeout(()=>{
+      const sels=container.querySelectorAll("select");
+      if(sels[0]&&slot0) sels[0].value=slot0;
+      if(sels[1]&&slot1) sels[1].value=slot1;
+    },50);
+  }).catch(()=>{
+    container.innerHTML=`<p style="font-size:.76rem;color:#E05A5A">⚠️ Error al cargar alumnas</p>`;
+  });
 }
 function saveGrade(sid,mid,grade){
   if(!grade) return;
