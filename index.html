@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <style>
 :root{
   --cream:#FFFBF0;--white:#fff;
@@ -245,6 +246,11 @@ nav{background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:2px solid 
 .path-node.locked{background:#E8E0F0;cursor:not-allowed;filter:grayscale(.4);}
 .path-node.locked::after{content:'🔒';position:absolute;font-size:.6rem;bottom:-2px;right:-2px;}
 @keyframes pulse{0%,100%{box-shadow:0 5px 13px rgba(180,140,200,.2);}50%{box-shadow:0 0 0 9px rgba(255,143,163,.18);}}
+/* Resizable image */
+.resizable-img-wrap .img-resize-handle{opacity:0;transition:opacity .2s;}
+.resizable-img-wrap:hover .img-resize-handle{opacity:1;}
+.resizable-img-wrap img{transition:box-shadow .2s;}
+.resizable-img-wrap:hover img{box-shadow:0 0 0 2px var(--accent),0 4px 14px rgba(0,0,0,.15) !important;}
 .path-conn{width:3px;height:15px;background:rgba(212,184,255,.2);border-radius:2px;}
 .path-conn.done{background:linear-gradient(to bottom,#4DD9AC,#B8DCFF);}
 .micro-right{padding:15px;height:fit-content;}
@@ -584,17 +590,23 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
 
 <!-- ══ PANTALLA DE SESIONES (reemplaza login individual) ══ -->
 <div id="screen-login" class="page">
-  <!-- TEACHER LOGIN (hidden by default, activated by secret button) -->
+  <!-- TEACHER LOGIN — Firebase Auth -->
   <div id="teacher-login-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(74,63,92,.5);backdrop-filter:blur(8px);align-items:center;justify-content:center">
     <div style="background:white;border-radius:24px;padding:32px;max-width:380px;width:90%;box-shadow:0 24px 60px rgba(100,70,140,.25);animation:fadeUp .3s ease;text-align:center">
       <div style="font-size:2.5rem;margin-bottom:8px">👩‍🏫</div>
       <div style="font-family:'Pacifico',cursive;font-size:1.4rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Acceso Docente</div>
-      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:22px">Panel de administración y calificación</p>
-      <input id="teacher-pass-input" type="password" placeholder="Contraseña de profesora"
+      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:22px">Inicia sesión con tu cuenta</p>
+      <input id="teacher-email-input" type="email" placeholder="Correo electrónico"
+        style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:10px;box-sizing:border-box;"
+        onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
+        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+        onkeydown="if(event.key==='Enter')document.getElementById('teacher-pass-input').focus()">
+      <input id="teacher-pass-input" type="password" placeholder="Contraseña"
         style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box;"
         onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
-        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'">
-      <div id="teacher-login-err" style="display:none;background:#FFE8EC;border:1.5px solid #FFB3C0;border-radius:10px;padding:8px 12px;color:#D45B6A;font-size:.84rem;font-weight:600;margin-bottom:10px">⚠️ Contraseña incorrecta</div>
+        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+        onkeydown="if(event.key==='Enter')doTeacherLogin()">
+      <div id="teacher-login-err" style="display:none;background:#FFE8EC;border:1.5px solid #FFB3C0;border-radius:10px;padding:8px 12px;color:#D45B6A;font-size:.84rem;font-weight:600;margin-bottom:10px">⚠️ Credenciales incorrectas</div>
       <button onclick="doTeacherLogin()" style="width:100%;padding:11px;border-radius:14px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-size:.93rem;font-weight:800;cursor:pointer">Entrar 🌟</button>
       <button onclick="document.getElementById('teacher-login-overlay').style.display='none'" style="margin-top:10px;background:none;border:none;color:var(--text-soft);font-family:'Nunito',sans-serif;font-size:.82rem;cursor:pointer">Cancelar</button>
     </div>
@@ -623,27 +635,34 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
   </div>
 </div>
 
-<!-- MODAL: ingresar a sesión -->
+<!-- MODAL: ingresar a sesión — login con Firebase Auth -->
 <div class="modal-overlay" id="modal-join-session">
   <div class="modal-box" style="max-width:400px;text-align:center;background:white">
     <div id="join-session-icon" style="font-size:2.8rem;margin-bottom:8px">🌸</div>
     <div id="join-session-name" style="font-family:'Pacifico',cursive;font-size:1.3rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Equipo 1</div>
-    <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:20px">Ingresa la contraseña de tu equipo</p>
-    <input id="join-session-pass" type="password" placeholder="Contraseña del equipo"
-      style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:1rem;color:#4A3F5C;text-align:center;letter-spacing:.15em;outline:none;margin-bottom:4px;box-sizing:border-box;"
-      onfocus="this.style.borderColor='#FF8FA3';this.style.background='white'"
-      onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'">
-    <div id="join-session-err" style="display:none;color:#D45B6A;font-size:.82rem;font-weight:600;margin-bottom:8px;padding:6px 10px;background:#FFE8EC;border-radius:8px">⚠️ Contraseña incorrecta</div>
-    <div style="margin-top:12px">
-      <p style="font-size:.77rem;color:#A99EBD;margin-bottom:8px">¿Con qué nombre quieres aparecer?</p>
-      <input id="join-member-name" placeholder="Tu nombre"
-        style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.95rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box;"
+    <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:16px">Inicia sesión con tu cuenta</p>
+    <!-- Students of this session -->
+    <div id="join-session-students" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+    <!-- Email input with @blackai.com autofill -->
+    <div style="position:relative;margin-bottom:10px">
+      <input id="join-email-input" type="text" placeholder="nombre"
+        style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:120px;"
         onfocus="this.style.borderColor='#FF8FA3';this.style.background='white'"
-        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'">
+        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+        oninput="updateEmailPreview()"
+        onkeydown="if(event.key==='Enter')document.getElementById('join-pass-input').focus()">
+      <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:.84rem;color:#A99EBD;pointer-events:none">@blackai.com</span>
     </div>
+    <div id="join-email-preview" style="font-size:.75rem;color:#A99EBD;margin-bottom:10px;height:16px"></div>
+    <input id="join-pass-input" type="password" placeholder="Contraseña"
+      style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box;"
+      onfocus="this.style.borderColor='#FF8FA3';this.style.background='white'"
+      onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+      onkeydown="if(event.key==='Enter')doJoinSession()">
+    <div id="join-session-err" style="display:none;color:#D45B6A;font-size:.82rem;font-weight:600;margin-bottom:8px;padding:6px 10px;background:#FFE8EC;border-radius:8px"></div>
     <div class="modal-actions" style="justify-content:center;gap:10px">
       <button class="modal-cancel" onclick="cM('modal-join-session')">Cancelar</button>
-      <button class="modal-confirm" onclick="doJoinSession()">Unirme 🌸</button>
+      <button class="modal-confirm" onclick="doJoinSession()">Entrar 🌸</button>
     </div>
   </div>
 </div>
@@ -858,16 +877,96 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
 
     <!-- Editor de sesiones (icono y color) -->
     <div style="background:var(--card-bg);border-radius:var(--radius);box-shadow:0 6px 24px var(--shadow);padding:22px;margin-top:20px" id="session-editor-panel">
-      <h3 style="font-size:1.05rem;font-weight:800;color:#4A3F5C;margin-bottom:16px">🎨 Personalizar sesiones (icono y color)</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <h3 style="font-size:1.05rem;font-weight:800;color:#4A3F5C">🎨 Personalizar sesiones (icono y color)</h3>
+        <button onclick="openNewSessionModal()"
+          style="padding:8px 18px;border-radius:11px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer;display:flex;align-items:center;gap:6px">
+          ＋ Nueva sesión
+        </button>
+      </div>
       <div id="session-editor-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px"></div>
+    </div>
+
+    <!-- Modal nueva sesión -->
+    <div id="modal-new-session" style="display:none;position:fixed;inset:0;background:rgba(74,63,92,.45);backdrop-filter:blur(6px);z-index:300;align-items:center;justify-content:center">
+      <div style="background:white;border-radius:20px;padding:28px;width:340px;box-shadow:0 20px 60px rgba(74,63,92,.25)">
+        <h3 style="font-family:'Pacifico',cursive;font-size:1.2rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:18px">✨ Nueva sesión</h3>
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Nombre del equipo</label>
+        <input id="ns-nombre" placeholder="Ej: Equipo Violeta" style="width:100%;padding:10px 14px;border-radius:11px;border:2px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.9rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box">
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Contraseña</label>
+        <input id="ns-pass" placeholder="Ej: violeta123" style="width:100%;padding:10px 14px;border-radius:11px;border:2px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.9rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box">
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Icono</label>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;max-height:100px;overflow-y:auto;background:#F8F4FF;border-radius:9px;padding:8px;border:1.5px solid #EDD8F0" id="ns-icon-picker"></div>
+        <input id="ns-icon-val" type="hidden" value="⭐">
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Color</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px" id="ns-color-picker"></div>
+        <input id="ns-color-val" type="hidden" value="linear-gradient(135deg,#FFBCCA,#FF8FA3)">
+        <div id="ns-error" style="display:none;color:#E05A5A;font-size:.8rem;margin-bottom:10px;font-weight:700"></div>
+        <div style="display:flex;gap:10px">
+          <button onclick="document.getElementById('modal-new-session').style.display='none'" style="flex:1;padding:10px;border-radius:11px;border:2px solid #EDD8F0;background:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;color:#7A6E8A">Cancelar</button>
+          <button onclick="createNewSession()" style="flex:1;padding:10px;border-radius:11px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">Crear sesión ✨</button>
+        </div>
+      </div>
+    </div>
+    <!-- ══ GESTIÓN DE ALUMNAS ══ -->
+    <div style="background:var(--card-bg);border-radius:var(--radius);box-shadow:0 6px 24px var(--shadow);padding:22px;margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <h3 style="font-size:1.05rem;font-weight:800;color:#4A3F5C">👩‍🎓 Gestionar Alumnas</h3>
+        <button onclick="openCreateStudentModal()"
+          style="padding:8px 18px;border-radius:11px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer">
+          ＋ Nueva alumna
+        </button>
+      </div>
+      <div id="student-manager-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+        <div style="text-align:center;padding:20px;color:var(--text-soft);grid-column:1/-1">⏳ Cargando alumnas...</div>
+      </div>
+    </div>
+
+    <!-- Modal crear/editar alumna -->
+    <div id="modal-student" style="display:none;position:fixed;inset:0;background:rgba(74,63,92,.45);backdrop-filter:blur(6px);z-index:300;align-items:center;justify-content:center">
+      <div style="background:white;border-radius:20px;padding:28px;width:360px;box-shadow:0 20px 60px rgba(74,63,92,.25);max-height:90vh;overflow-y:auto">
+        <h3 id="modal-student-title" style="font-family:'Pacifico',cursive;font-size:1.1rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:18px">✨ Nueva alumna</h3>
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Nombre completo</label>
+        <input id="st-nombre" placeholder="Ej: GARCIA LOPEZ LUCIA" style="width:100%;padding:10px 14px;border-radius:11px;border:2px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.88rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box" oninput="autoFillStudentEmail()">
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Nombre(s) de pila</label>
+        <input id="st-firstname" placeholder="Ej: LUCIA" style="width:100%;padding:10px 14px;border-radius:11px;border:2px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.88rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box" oninput="autoFillStudentEmail()">
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Correo electrónico</label>
+        <div style="position:relative;margin-bottom:12px">
+          <input id="st-email" placeholder="nombre" style="width:100%;padding:10px 14px;border-radius:11px;border:2px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.88rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:110px">
+          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.8rem;color:#A99EBD;pointer-events:none">@blackai.com</span>
+        </div>
+        <label style="font-size:.8rem;font-weight:700;color:#7A6E8A;display:block;margin-bottom:5px">Contraseña</label>
+        <div style="position:relative;margin-bottom:12px">
+          <input id="st-pass" type="text" placeholder="Contraseña para la alumna" style="width:100%;padding:10px 14px;border-radius:11px;border:2px solid #EDD8F0;font-family:'Nunito',sans-serif;font-size:.88rem;color:#4A3F5C;outline:none;box-sizing:border-box">
+          <button onclick="genPassword()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:3px 8px;border-radius:7px;border:none;background:#F0E8F8;font-size:.72rem;font-weight:700;color:#7A6E8A;cursor:pointer">🎲 Auto</button>
+        </div>
+        <input id="st-uid" type="hidden" value="">
+        <div id="st-error" style="display:none;color:#E05A5A;font-size:.8rem;margin-bottom:10px;font-weight:700;padding:8px;background:#FFE8EC;border-radius:8px"></div>
+        <div id="st-success" style="display:none;color:#2A9D6A;font-size:.8rem;margin-bottom:10px;font-weight:700;padding:8px;background:rgba(77,217,172,.1);border-radius:8px"></div>
+        <div style="display:flex;gap:10px">
+          <button onclick="document.getElementById('modal-student').style.display='none'" style="flex:1;padding:10px;border-radius:11px;border:2px solid #EDD8F0;background:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;color:#7A6E8A">Cancelar</button>
+          <button id="st-save-btn" onclick="saveStudent()" style="flex:1;padding:10px;border-radius:11px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">Crear alumna ✨</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
-
-<script>
 /* ══ FIREBASE ══ */
-firebase.initializeApp({databaseURL:"https://foro-ee8a5-default-rtdb.firebaseio.com/"});
+firebase.initializeApp({
+  apiKey:"AIzaSyDIucPhIp0gSLPcmCUTYrY7CJx5LYBzCQU",
+  authDomain:"foro-ee8a5.firebaseapp.com",
+  databaseURL:"https://foro-ee8a5-default-rtdb.firebaseio.com"
+});
 const db=firebase.database();
+const auth=firebase.auth();
+
+/* Auth anónimo — se ejecuta una sola vez al cargar la página */
+window._authReady=false;
+auth.signInAnonymously().catch(err=>console.warn("Auth:",err.message));
+auth.onAuthStateChanged(user=>{
+  window._authReady=!!user;
+  if(user) console.log("✅ Auth UID:",user.uid);
+});
 
 /* ══ CONFIGURACIÓN DE SESIONES ══ */
 /* Las sesiones se guardan en Firebase: /sesiones/{id}
@@ -942,30 +1041,62 @@ function sRef(path){ return "pedagogia/s/"+(currentSession?.id||"_")+"/"+path; }
 
 /* Snapshot completo del estado actual de la sesión */
 function buildSessionSnapshot(){
-  // Capture live DOM edits for current module
+  // Capture ALL live DOM edits — don't rely on onblur having fired
+
+  // 1. Capture from currently open module panel
   if(currentModId && modData[currentModId]){
     const h3=document.getElementById("mod-main-h3");
     const pp=document.getElementById("mod-main-p");
-    if(h3) modData[currentModId].title=h3.textContent.trim();
-    if(pp) modData[currentModId].desc=pp.textContent.trim();
+    if(h3&&h3.textContent.trim()) modData[currentModId].title=h3.textContent.trim();
+    if(pp&&pp.textContent.trim()) modData[currentModId].desc=pp.textContent.trim();
+    // Capture URL inputs
     if(modData[currentModId].subBlocks){
       modData[currentModId].subBlocks.forEach(sb=>{
         const u=document.getElementById("svu-"+sb.uid)||document.getElementById("spu-"+sb.uid)||document.getElementById("sau-"+sb.uid);
         if(u&&u.value.trim()) sb.url=u.value.trim();
+        // Capture rich text notes
+        const noteEl=document.getElementById("note-content-"+sb.uid);
+        if(noteEl&&sb.type==="texto") sb.desc=noteEl.innerHTML||"";
       });
+    }
+    // Capture objectives from DOM
+    const objList=document.getElementById("obj-list-"+currentModId);
+    if(objList){
+      const items=Array.from(objList.querySelectorAll("li")).map(li=>li.textContent.trim()).filter(t=>t);
+      if(items.length>0) modData[currentModId].objectives=items;
     }
   }
 
-  // Serialize all modData
+  // 2. Capture mod-label edits from sidebar for ALL mods
+  document.querySelectorAll(".mod-item").forEach(mi=>{
+    if(modData[mi.id]){
+      const label=mi.querySelector(".mod-label");
+      if(label&&label.textContent.trim()) modData[mi.id].title=label.textContent.trim();
+    }
+  });
+
+  // 3. Serialize all modData
   const mods={};
   Object.entries(modData).forEach(([k,v])=>{
-    mods[k]={type:v.type,title:v.title||"",url:v.url||"",desc:v.desc||"",
+    if(!v) return;
+    mods[k]={
+      type:v.type||"intro",
+      title:v.title||"",
+      url:v.url||"",
+      desc:v.desc||"",
       compTrigger:v.compTrigger||"ninguno",
+      objectives:(Array.isArray(v.objectives)&&v.objectives.length>0) ? [...v.objectives] : null,
       subBlocks:(v.subBlocks||[]).map(sb=>({
-        uid:sb.uid,type:sb.type,title:sb.title||"",url:sb.url||"",
-        desc:sb.desc||"",isRichText:sb.isRichText||false,quiz:sb.quiz||null
+        uid:sb.uid||"",
+        type:sb.type||"",
+        title:sb.title||"",
+        url:sb.url||"",
+        desc:sb.desc||"",
+        isRichText:!!sb.isRichText,
+        quiz:sb.quiz||null
       })),
-      quiz:v.quiz||null};
+      quiz:v.quiz||null
+    };
   });
 
   // Progress
@@ -1015,54 +1146,71 @@ function saveSession(showBadge=true){
   if(!currentSession||isTeacher) return Promise.resolve();
   _ownSaveFlag=true;
   const snap=buildSessionSnapshot();
-  return db.ref("pedagogia/s/"+currentSession.id).set(snap).then(()=>{
+  const clean=JSON.parse(JSON.stringify(snap,(key,val)=>val===undefined?null:val));
+  window._lastRemoteHash=JSON.stringify(clean);
+
+  // Wait for auth if not ready yet (max 3s)
+  const doWrite=()=>db.ref("pedagogia/s/"+currentSession.id).set(clean).then(()=>{
     if(showBadge) showAutoSaveBadge();
-  }).catch(()=>{
-    // Local backup
-    try{localStorage.setItem("eva_s_"+currentSession.id, JSON.stringify(snap));}catch(e){}
+  }).catch(err=>{
+    console.warn("Save error:",err.message);
+    try{localStorage.setItem("eva_s_"+currentSession.id,JSON.stringify(clean));}catch(e){}
+    if(showBadge) showAutoSaveBadge();
   });
+
+  if(window._authReady||auth.currentUser){
+    return doWrite();
+  } else {
+    return new Promise(resolve=>{
+      const unsub=auth.onAuthStateChanged(user=>{
+        unsub();
+        doWrite().then(resolve);
+      });
+      setTimeout(()=>{unsub();doWrite().then(resolve);},3000);
+    });
+  }
 }
 
-/* Load and restore session from Firebase — FULL DOM RESET first */
+/* Load and restore session from Firebase — FULL DOM RESET then apply saved data */
 function loadSession(data){
-  // ── Step 1: HARD RESET — restore DOM to factory defaults ──
+  // ── HARD RESET: restore DOM to factory defaults ──
   modData=JSON.parse(JSON.stringify(BASE_MOD_DATA));
+
+  // Remove custom units and reset defaults
   const unitsEl=document.getElementById("mooc-units");
   if(unitsEl){
-    // Remove ALL custom units/mods added in previous session
-    unitsEl.querySelectorAll(".unit-group").forEach(ug=>{
+    // Remove all custom unit-groups
+    Array.from(unitsEl.querySelectorAll(".unit-group")).forEach(ug=>{
       if(ug.id!=="ug-1"&&ug.id!=="ug-2") ug.remove();
     });
-    // Restore default units if they were removed
+    // Restore ug-1 if missing
     if(!document.getElementById("ug-1")){
       const div=document.createElement("div");div.className="unit-group";div.id="ug-1";
       div.innerHTML=`<div class="unit-hdr"><span class="unit-hdr-name" contenteditable="true">UNIDAD 1 · INTRODUCCIÓN</span><button class="del-btn" id="dbtn-ug-1"></button></div>`;
       unitsEl.prepend(div);
       document.getElementById("dbtn-ug-1")?.addEventListener("click",()=>delEl("ug-1"));
     }
+    // Restore ug-2 if missing
     if(!document.getElementById("ug-2")){
       const div=document.createElement("div");div.className="unit-group";div.id="ug-2";
       div.innerHTML=`<div class="unit-hdr"><span class="unit-hdr-name" contenteditable="true">UNIDAD 2 · DISEÑO EVA</span><button class="del-btn" id="dbtn-ug-2"></button></div>`;
       unitsEl.appendChild(div);
       document.getElementById("dbtn-ug-2")?.addEventListener("click",()=>delEl("ug-2"));
     }
-    // Remove custom mod-items that don't belong to defaults
+    // Remove any lingering custom mod-items
     document.querySelectorAll(".mod-item").forEach(mi=>{
       if(!BASE_MOD_DATA[mi.id]) mi.remove();
     });
-    // Reset default mod-item dots
+    // Reset all default mod dots
     Object.keys(BASE_MOD_DATA).forEach(id=>{
       const el=document.getElementById(id);
-      if(el){
-        const dot=el.querySelector(".mod-dot");
-        if(dot){dot.className="mod-dot pending";dot.textContent="○";}
-      }
+      if(el){const dot=el.querySelector(".mod-dot");if(dot){dot.className="mod-dot pending";dot.textContent="○";}}
     });
-    // Make sure mi-intro is back in ug-1 if it was removed
-    const defaultMods=["mi-intro","mi-v1","mi-lec1","mi-foro1","mi-act1","mi-quiz1"];
-    defaultMods.forEach(id=>{
+    // Re-add any default mods that were removed
+    const TAG={intro:"tag-intro",video:"tag-video",lectura:"tag-lectura",foro:"tag-foro",actividad:"tag-actividad",quiz:"tag-quiz"};
+    ["mi-intro","mi-v1","mi-lec1","mi-foro1","mi-act1","mi-quiz1"].forEach(id=>{
       if(!document.getElementById(id)){
-        const d=BASE_MOD_DATA[id];const TAG={intro:"tag-intro",video:"tag-video",lectura:"tag-lectura",foro:"tag-foro",actividad:"tag-actividad",quiz:"tag-quiz"};
+        const d=BASE_MOD_DATA[id];
         const btn=document.createElement("div");btn.className="mod-item";btn.id=id;
         const dbid="dbtn-"+id;
         btn.innerHTML=`<div class="mod-dot pending">○</div><span style="font-size:.9rem">${TYPE_ICONS[d.type]||"📋"}</span><span class="mod-label" contenteditable="true">${d.title}</span><span class="mod-type-tag ${TAG[d.type]||"tag-intro"}">${d.type}</span><button class="del-btn" id="${dbid}"></button>`;
@@ -1073,54 +1221,78 @@ function loadSession(data){
       }
     });
   }
-  // Reset course name
-  const cn=document.getElementById("course-name");if(cn) cn.textContent="Pedagogía Digital";
-  // Reset theme/design
+  // Reset course name, theme, design, panel
+  const cn=document.getElementById("course-name");if(cn)cn.textContent="Pedagogía Digital";
   document.body.className="theme-1";
   DESIGN_CLASSES.forEach(c=>document.body.classList.remove(c));
   document.body.dataset.design="default";
   if(window.updateCanvasDesign) window.updateCanvasDesign("default");
-  // Clear panel
   document.getElementById("mooc-panel").innerHTML=`<div style="text-align:center;padding:48px 24px;color:var(--text-soft)"><div style="font-size:2.8rem;margin-bottom:12px">👈</div><p style="font-size:1rem;font-weight:700">Selecciona un módulo</p></div>`;
-  updateProgress();
+  currentModId=null;
 
   if(!data){
-    // No saved data — use defaults, show first module
-    setTimeout(()=>showMod("mi-intro"),100);
+    updateProgress();
+    setTimeout(()=>showMod("mi-intro"),80);
     return;
   }
 
-  // ── Step 2: Apply saved data ──
+  // ── Apply saved modData — full replace, not merge ──
   if(data.mods){
-    Object.entries(data.mods).forEach(([k,v])=>{ modData[k]=v; });
+    Object.entries(data.mods).forEach(([k,v])=>{
+      if(!v) return;
+      // Full replace: start from BASE if default, then apply saved fields
+      const base=BASE_MOD_DATA[k]?JSON.parse(JSON.stringify(BASE_MOD_DATA[k])):{};
+      modData[k]={
+        ...base,
+        type:v.type||base.type||"intro",
+        title:v.title||base.title||"",
+        url:v.url||"",
+        desc:v.desc||base.desc||"",
+        compTrigger:v.compTrigger||base.compTrigger||"ninguno",
+        objectives:Array.isArray(v.objectives)&&v.objectives.length>0 ? v.objectives : (base.objectives||null),
+        subBlocks:v.subBlocks||[],
+        quiz:v.quiz||base.quiz||null
+      };
+    });
     (data.deletedDefaultMods||[]).forEach(id=>delete modData[id]);
   }
+
+  // ── Apply theme/design/courseName ──
   if(data.theme) document.body.className=data.theme;
   if(data.design&&data.design!=="default") applyDesign(data.design);
   if(data.courseName){const cn2=document.getElementById("course-name");if(cn2)cn2.textContent=data.courseName;}
 
-  // ── Step 3: Rebuild sidebar from saved state ──
-  setTimeout(()=>{
-    restoreFullSidebar({
-      units:data.units||[],allMods:data.allMods||[],
-      deletedDefaultMods:data.deletedDefaultMods||[],
-      deletedDefaultUnits:data.deletedDefaultUnits||[]
+  // ── Rebuild sidebar then show first module ──
+  restoreFullSidebar({
+    units:data.units||[],
+    allMods:data.allMods||[],
+    deletedDefaultMods:data.deletedDefaultMods||[],
+    deletedDefaultUnits:data.deletedDefaultUnits||[]
+  });
+
+  // ── Restore progress dots ──
+  if(data.prog){
+    Object.entries(data.prog).forEach(([id,status])=>{
+      if(status==="done"){const el=document.getElementById(id);const dot=el?.querySelector(".mod-dot");if(dot){dot.className="mod-dot done";dot.textContent="✓";}}
     });
-    if(data.prog){
-      Object.entries(data.prog).forEach(([id,status])=>{
-        if(status==="done"){const el=document.getElementById(id);const dot=el?.querySelector(".mod-dot");if(dot){dot.className="mod-dot done";dot.textContent="✓";}}
-      });
-      updateProgress();
+  }
+  updateProgress();
+
+  // ── Show first available module ──
+  const firstMod=document.querySelector(".mod-item");
+  if(firstMod) showMod(firstMod.id);
+  else showMod("mi-intro");
+
+  // ── Show last saved info ──
+  if(data.ts){
+    const badge=document.getElementById("autosave-badge");
+    if(badge){
+      badge.textContent="Última sesión: "+new Date(data.ts).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})+" por "+(data.by||"?");
+      badge.style.opacity="1";
+      clearTimeout(badge._t);
+      badge._t=setTimeout(()=>badge.style.opacity="0",6000);
     }
-    if(data.ts){
-      const badge=document.getElementById("autosave-badge");
-      if(badge){
-        badge.textContent="Guardado: "+new Date(data.ts).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})+" por "+(data.by||"?");
-        badge.style.opacity="1";
-        setTimeout(()=>badge.style.opacity="0",5000);
-      }
-    }
-  },100);
+  }
 }
 
 /* Autosave debounce */
@@ -1135,8 +1307,10 @@ function manualSave(){
   const btn=document.getElementById("manual-save-btn");
   if(btn){btn.textContent="⏳ Guardando...";btn.style.opacity=".7";}
   saveSession(false).then(()=>{
-    if(btn){btn.textContent="✓ Guardado";btn.style.opacity="1";setTimeout(()=>btn.textContent="💾 Guardar",2500);}
+    if(btn){btn.textContent="✓ Guardado";btn.style.opacity="1";setTimeout(()=>{btn.textContent="💾 Guardar";},2500);}
     toast("💾 Guardado · /pedagogia/s/"+currentSession.id);
+  }).catch(()=>{
+    if(btn){btn.textContent="💾 Guardar";btn.style.opacity="1";}
   });
 }
 
@@ -1145,7 +1319,10 @@ function showAutoSaveBadge(){
   if(!el) return;
   el.textContent="✓ Guardado · "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
   el.style.opacity="1";
-  setTimeout(()=>el.style.opacity="0",3000);
+  el.style.color="#2A9D6A";
+  el.style.borderColor="rgba(77,217,172,.4)";
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>{el.style.opacity="0";},3000);
 }
 
 /* Realtime sync — only listens to THIS session's path */
@@ -1157,16 +1334,52 @@ function startRealtimeSync(){
   syncListener=db.ref(path).on("value",snap=>{
     if(!snap.val()) return;
     if(_ownSaveFlag){_ownSaveFlag=false;return;} // skip own saves
-    // Another collaborator saved — reload their state
     const remote=snap.val();
     const remoteHash=JSON.stringify(remote);
     if(remoteHash===window._lastRemoteHash) return; // no change
     window._lastRemoteHash=remoteHash;
-    loadSession(remote);
+    // Smart update: apply collaborator changes without full DOM reset
+    applyRemoteChanges(remote);
     showCollabToast();
   });
 }
 function startSync(){startRealtimeSync();}
+
+/* Apply remote collaborator changes without resetting the whole DOM */
+function applyRemoteChanges(remote){
+  // Update modData from remote
+  if(remote.mods){
+    Object.entries(remote.mods).forEach(([k,v])=>{
+      if(v) modData[k]=Object.assign(modData[k]||{},v);
+    });
+    (remote.deletedDefaultMods||[]).forEach(id=>delete modData[id]);
+  }
+  // Refresh current module panel if data changed
+  if(currentModId&&remote.mods&&remote.mods[currentModId]){
+    showMod(currentModId);
+  }
+  // Update progress dots
+  if(remote.prog){
+    Object.entries(remote.prog).forEach(([id,status])=>{
+      const el=document.getElementById(id);const dot=el?.querySelector(".mod-dot");
+      if(!dot) return;
+      if(status==="done"&&!dot.classList.contains("done")){dot.className="mod-dot done";dot.textContent="✓";}
+    });
+    updateProgress();
+  }
+  // Update sidebar for new units/mods added by collaborator
+  if(remote.allMods||remote.units){
+    restoreFullSidebar({
+      units:remote.units||[],allMods:remote.allMods||[],
+      deletedDefaultMods:remote.deletedDefaultMods||[],
+      deletedDefaultUnits:remote.deletedDefaultUnits||[]
+    });
+  }
+  // Update course name, theme, design if changed
+  if(remote.courseName){const cn=document.getElementById("course-name");if(cn&&cn.textContent!==remote.courseName)cn.textContent=remote.courseName;}
+  if(remote.theme&&document.body.className!==remote.theme) document.body.className=remote.theme;
+  if(remote.design&&remote.design!==document.body.dataset.design) applyDesign(remote.design);
+}
 
 
 /* ══ SESIONES LOBBY ══ */
@@ -1259,65 +1472,116 @@ function renderLobby(sessions){
 }
 
 let pendingSessionId=null, pendingSession=null;
-function openJoinModal(id, s){
+/* ══ MODAL SESIÓN — muestra alumnas asignadas, login con Firebase Auth ══ */
+function updateEmailPreview(){
+  const val=(document.getElementById("join-email-input")?.value||"").trim().toLowerCase().replace(/\s+/g,"");
+  const preview=document.getElementById("join-email-preview");
+  if(preview) preview.textContent=val?(val.includes("@")?val:val+"@blackai.com"):"";
+}
+
+function openJoinModal(id,s){
   pendingSessionId=id; pendingSession=s;
   document.getElementById("join-session-icon").textContent=s.icon;
   document.getElementById("join-session-name").textContent=s.nombre;
-  document.getElementById("join-session-pass").value="";
   document.getElementById("join-session-err").style.display="none";
-  // Show assigned students as dropdown
+  document.getElementById("join-email-input").value="";
+  document.getElementById("join-pass-input").value="";
+  document.getElementById("join-email-preview").textContent="";
+  // Show only students assigned to this session
+  const studentsDiv=document.getElementById("join-session-students");
   const alumnos=s.alumnos||[];
-  const wrap=document.getElementById("join-member-name")?.parentNode;
-  if(wrap){
-    const existing=wrap.querySelector("select");if(existing)existing.remove();
-    const nameInp=document.getElementById("join-member-name");
+  if(studentsDiv){
     if(alumnos.length>0){
-      if(nameInp) nameInp.style.display="none";
-      const sel=document.createElement("select");sel.id="join-sel";
-      sel.style.cssText="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.9rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box";
-      sel.innerHTML=`<option value="">— Selecciona tu nombre —</option>`+
-        alumnos.map(aid=>{const st=ALL_STUDENTS.find(s=>s.id===aid);return st?`<option value="${st.nombre}">${st.nombre}</option>`:""}).join("");
-      wrap.insertBefore(sel,wrap.querySelector(".modal-actions"));
+      studentsDiv.innerHTML=`<p style="font-size:.75rem;color:#A99EBD;margin-bottom:6px;text-align:center">Selecciona tu nombre:</p>`;
+      alumnos.forEach(aid=>{
+        // Try ALL_STUDENTS first, then Firebase
+        const st=ALL_STUDENTS.find(x=>x.id===aid);
+        const firstName=st?st.firstName:(aid.charAt(0).toUpperCase()+aid.slice(1));
+        const emailUser=st?(st.firstName||aid).toLowerCase():aid.toLowerCase();
+        const card=document.createElement("div");
+        card.style.cssText="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:11px;border:1.5px solid rgba(255,143,163,.2);background:#FFFBF0;cursor:pointer;transition:all .2s;margin-bottom:5px";
+        card.onmouseenter=()=>{card.style.background="rgba(255,143,163,.08)";card.style.borderColor="var(--accent)";};
+        card.onmouseleave=()=>{card.style.background="#FFFBF0";card.style.borderColor="rgba(255,143,163,.2)";};
+        card.onclick=()=>{
+          document.getElementById("join-email-input").value=emailUser;
+          updateEmailPreview();
+          document.getElementById("join-pass-input").focus();
+          // Highlight selected
+          studentsDiv.querySelectorAll("[data-student]").forEach(c=>{c.style.borderColor="rgba(255,143,163,.2)";c.style.background="#FFFBF0";});
+          card.style.borderColor="var(--accent)";card.style.background="rgba(255,143,163,.12)";
+        };
+        card.dataset.student=aid;
+        card.innerHTML=`<div style="width:34px;height:34px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.85rem;flex-shrink:0">${firstName[0]}</div>
+          <div style="text-align:left">
+            <div style="font-size:.88rem;font-weight:700;color:#4A3F5C">${firstName}</div>
+            <div style="font-size:.7rem;color:#A99EBD">${emailUser}@blackai.com</div>
+          </div>`;
+        studentsDiv.appendChild(card);
+      });
+      studentsDiv.style.display="block";
     } else {
-      if(nameInp){nameInp.style.display="block";nameInp.value="";}
+      studentsDiv.innerHTML="";
+      studentsDiv.style.display="none";
     }
   }
   oM("modal-join-session");
+  setTimeout(()=>document.getElementById("join-email-input")?.focus(),300);
 }
+
 function doJoinSession(){
-  const pass=document.getElementById("join-session-pass").value;
+  const emailRaw=(document.getElementById("join-email-input")?.value||"").trim().toLowerCase().replace(/\s+/g,"");
+  const pass=document.getElementById("join-pass-input")?.value||"";
   const errEl=document.getElementById("join-session-err");
-  const sel=document.getElementById("join-sel");
-  const nameInp=document.getElementById("join-member-name");
-  const name=(sel?sel.value:nameInp?.value||"").trim();
-  if(!name){toast("⚠️ Selecciona o escribe tu nombre");return;}
-  if(pass!==pendingSession.pass){errEl.style.display="block";errEl.textContent="⚠️ Contraseña incorrecta";return;}
-  const alumnos=pendingSession.alumnos||[];
-  if(alumnos.length>0){
-    const student=ALL_STUDENTS.find(s=>s.nombre===name);
-    if(student&&!alumnos.includes(student.id)){
-      errEl.style.display="block";errEl.textContent="⚠️ No estás asignada a esta sesión. Consulta a tu profesora.";return;
-    }
-  }
-  db.ref("pedagogia/presencia/"+pendingSessionId).once("value").then(snap=>{
-    const active=Object.values(snap.val()||{}).filter(m=>m?.online&&m.name!==name);
-    if(active.length>=2){errEl.style.display="block";errEl.textContent="⚠️ Sesión llena (máx. 2 personas). Intenta más tarde.";return;}
-    cM("modal-join-session");
-    currentSession={id:pendingSessionId,...pendingSession};currentMember={name,joinedAt:Date.now()};isTeacher=false;enterApp();
-  }).catch(()=>{
-    cM("modal-join-session");
-    currentSession={id:pendingSessionId,...pendingSession};currentMember={name,joinedAt:Date.now()};isTeacher=false;enterApp();
+  if(!emailRaw){errEl.style.display="block";errEl.textContent="⚠️ Selecciona tu nombre o escribe tu correo";return;}
+  if(!pass){errEl.style.display="block";errEl.textContent="⚠️ Ingresa tu contraseña";return;}
+  const email=emailRaw.includes("@")?emailRaw:emailRaw+"@blackai.com";
+  errEl.style.display="none";
+  // Sign in with Firebase Auth
+  auth.signInWithEmailAndPassword(email,pass).then(cred=>{
+    const uid=cred.user.uid;
+    // Load student profile from Firebase
+    db.ref("pedagogia/alumnos/"+uid).once("value").then(snap=>{
+      const studentData=snap.val()||{};
+      const firstName=studentData.firstName||email.split("@")[0].toUpperCase();
+      const studentId=studentData.id||emailRaw;
+      // Verify assigned to this session
+      const alumnos=pendingSession.alumnos||[];
+      if(alumnos.length>0&&studentId&&!alumnos.includes(studentId)){
+        errEl.style.display="block";errEl.textContent="⚠️ No estás asignada a esta sesión.";
+        auth.signOut();return;
+      }
+      cM("modal-join-session");
+      currentSession={id:pendingSessionId,...pendingSession};
+      currentMember={name:firstName,uid,joinedAt:Date.now()};
+      isTeacher=false;
+      enterApp();
+    });
+  }).catch(e=>{
+    errEl.style.display="block";
+    errEl.textContent=(e.code==="auth/user-not-found"||e.code==="auth/wrong-password"||e.code==="auth/invalid-credential")
+      ?"⚠️ Correo o contraseña incorrectos":"⚠️ "+e.message;
   });
 }
 
 function doTeacherLogin(){
+  const email=document.getElementById("teacher-email-input").value.trim();
   const pass=document.getElementById("teacher-pass-input").value;
   const err=document.getElementById("teacher-login-err");
-  if(pass!==TEACHER_PASS){err.style.display="block";setTimeout(()=>err.style.display="none",3000);return;}
-  document.getElementById("teacher-login-overlay").style.display="none";
-  isTeacher=true;
-  currentMember={name:"Cuicalli",joinedAt:Date.now()};
-  enterTeacherDashboard();
+  if(!email||!pass){err.style.display="block";err.textContent="⚠️ Ingresa correo y contraseña";return;}
+  err.style.display="none";
+  // Sign in with Firebase Auth
+  auth.signInWithEmailAndPassword(email,pass).then(cred=>{
+    document.getElementById("teacher-login-overlay").style.display="none";
+    isTeacher=true;
+    currentMember={name:email.split("@")[0],uid:cred.user.uid,joinedAt:Date.now()};
+    enterTeacherDashboard();
+    toast("¡Bienvenida, "+currentMember.name+"! 👩‍🏫");
+  }).catch(e=>{
+    err.style.display="block";
+    err.textContent=e.code==="auth/user-not-found"||e.code==="auth/wrong-password"||e.code==="auth/invalid-credential"
+      ?"⚠️ Correo o contraseña incorrectos"
+      :"⚠️ Error: "+e.message;
+  });
 }
 
 /* ══ PRESENCIA EN TIEMPO REAL ══ */
@@ -1462,17 +1726,19 @@ function enterApp(){
 
   // Load from isolated session path /pedagogia/s/{sessionId}/
   db.ref("pedagogia/s/"+currentSession.id).once("value").then(snap=>{
-    loadSession(snap.val());
-    setTimeout(()=>{
-      startRealtimeSync();
-    },700);
+    const data=snap.val();
+    // Store the hash of what we just loaded so realtime sync doesn't overwrite it
+    window._lastRemoteHash=JSON.stringify(data);
+    loadSession(data);
+    // Start realtime sync AFTER load settles
+    setTimeout(()=>startRealtimeSync(),800);
   }).catch(()=>{
     try{
       const backup=localStorage.getItem("eva_s_"+currentSession.id);
       if(backup) loadSession(JSON.parse(backup));
       else loadSession(null);
     }catch(e){loadSession(null);}
-    startRealtimeSync();
+    setTimeout(()=>startRealtimeSync(),800);
   });
 }
 
@@ -1502,11 +1768,14 @@ function enterTeacherDashboard(){
   document.getElementById("screen-app").style.display="none";
   document.getElementById("screen-teacher").style.display="block";
   document.getElementById("main-nav").style.display="flex";
-  document.getElementById("nav-uname").textContent="Cuicalli";
-  document.getElementById("nav-avatar").textContent="C";
-  toast("¡Bienvenida, Cuicalli! 👩‍🏫");
+  const teacherName=auth.currentUser?.email?.split("@")[0]||"Docente";
+  const displayName=teacherName.charAt(0).toUpperCase()+teacherName.slice(1);
+  document.getElementById("nav-uname").textContent=displayName;
+  document.getElementById("nav-avatar").textContent=displayName[0].toUpperCase();
+  toast("¡Bienvenida, "+displayName+"! 👩‍🏫");
   loadTeacherDashboard();
   loadSessionEditor();
+  loadStudentManager();
 }
 function loadTeacherDashboard(){
   const container=document.getElementById("teacher-sessions-container");
@@ -1726,6 +1995,224 @@ function updateSessionDesign(sid,designId,btn){
   btn.style.borderColor="var(--accent)";btn.style.background="rgba(255,143,163,.1)";
   toast("🎨 Diseño actualizado — los alumnos lo verán al actualizar");
 }
+function openNewSessionModal(){
+  document.getElementById("ns-nombre").value="";
+  document.getElementById("ns-pass").value="";
+  document.getElementById("ns-icon-val").value="⭐";
+  document.getElementById("ns-color-val").value="linear-gradient(135deg,#FFBCCA,#FF8FA3)";
+  document.getElementById("ns-error").style.display="none";
+  // Populate icon picker
+  const iconPicker=document.getElementById("ns-icon-picker");
+  if(iconPicker&&!iconPicker.hasChildNodes()){
+    iconPicker.innerHTML=ALL_ICONS.map(ic=>
+      `<button onclick="selectNewSessionIcon('${ic}',this)"
+        style="width:32px;height:32px;border-radius:7px;border:2px solid transparent;background:white;font-size:1rem;cursor:pointer">${ic}</button>`
+    ).join("");
+  } else if(iconPicker){
+    iconPicker.querySelectorAll("button").forEach(b=>b.style.borderColor="transparent");
+  }
+  // Populate color picker
+  const NS_COLORS=[
+    ["linear-gradient(135deg,#FFBCCA,#FF8FA3)","Rosa"],
+    ["linear-gradient(135deg,#D4B8FF,#C77DFF)","Lavanda"],
+    ["linear-gradient(135deg,#B8F0D8,#4DD9AC)","Menta"],
+    ["linear-gradient(135deg,#B8DCFF,#5BA3F5)","Cielo"],
+    ["linear-gradient(135deg,#FFD4B8,#FF9A76)","Durazno"],
+    ["linear-gradient(135deg,#FFB5A7,#E87461)","Coral"],
+    ["linear-gradient(135deg,#FFF3B0,#F7C948)","Limón"],
+    ["linear-gradient(135deg,#C8B8FF,#7C3AED)","Violeta"],
+  ];
+  const colorPicker=document.getElementById("ns-color-picker");
+  if(colorPicker&&!colorPicker.hasChildNodes()){
+    colorPicker.innerHTML=NS_COLORS.map(([col,name])=>
+      `<button onclick="selectNewSessionColor('${col.replace(/'/g,"\\'")}',this)" title="${name}"
+        style="width:28px;height:28px;border-radius:50%;background:${col};border:3px solid white;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.12);transition:transform .15s"
+        onmouseenter="this.style.transform='scale(1.2)'" onmouseleave="this.style.transform=''"></button>`
+    ).join("");
+  }
+  document.getElementById("modal-new-session").style.display="flex";
+  document.getElementById("ns-nombre").focus();
+}
+function selectNewSessionIcon(icon,btn){
+  document.getElementById("ns-icon-val").value=icon;
+  document.querySelectorAll("#ns-icon-picker button").forEach(b=>b.style.borderColor="transparent");
+  btn.style.borderColor="var(--accent)";
+}
+function selectNewSessionColor(color,btn){
+  document.getElementById("ns-color-val").value=color;
+  btn.closest("div").querySelectorAll("button").forEach(b=>b.style.borderWidth="3px");
+  btn.style.borderWidth="4px";
+  btn.style.borderColor="#4DD9AC";
+}
+function createNewSession(){
+  const nombre=document.getElementById("ns-nombre").value.trim();
+  const pass=document.getElementById("ns-pass").value.trim();
+  const icon=document.getElementById("ns-icon-val").value||"⭐";
+  const color=document.getElementById("ns-color-val").value||"linear-gradient(135deg,#FFBCCA,#FF8FA3)";
+  const errEl=document.getElementById("ns-error");
+  if(!nombre){errEl.textContent="⚠️ Escribe un nombre";errEl.style.display="block";return;}
+  if(!pass){errEl.textContent="⚠️ Escribe una contraseña";errEl.style.display="block";return;}
+  // Generate unique session ID
+  const newId="s"+Date.now();
+  const newSession={nombre,pass,icon,color,design:"default",alumnos:[]};
+  // Save to Firebase
+  db.ref("pedagogia/sesiones_config/"+newId).set(newSession).then(()=>{
+    document.getElementById("modal-new-session").style.display="none";
+    toast("✨ Sesión '"+nombre+"' creada — ID: "+newId);
+    loadSessionEditor();
+    loadTeacherDashboard();
+  }).catch(e=>{
+    errEl.textContent="⚠️ Error al guardar: "+e.message;
+    errEl.style.display="block";
+  });
+}
+/* ══ GESTIÓN DE ALUMNAS ══ */
+function loadStudentManager(){
+  const list=document.getElementById("student-manager-list");
+  if(!list) return;
+  list.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-soft);grid-column:1/-1">⏳ Cargando...</div>`;
+  db.ref("pedagogia/alumnos").once("value").then(snap=>{
+    const alumnos=snap.val()||{};
+    const entries=Object.entries(alumnos);
+    if(!entries.length){
+      list.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text-soft);grid-column:1/-1;font-size:.9rem">No hay alumnas registradas aún.<br>Haz clic en <b>＋ Nueva alumna</b> para comenzar.</div>`;
+      return;
+    }
+    list.innerHTML="";
+    entries.forEach(([uid,a])=>{
+      const card=document.createElement("div");
+      card.style.cssText="background:white;border-radius:14px;padding:14px 16px;border:1.5px solid rgba(212,184,255,.2);display:flex;align-items:center;gap:12px;";
+      card.innerHTML=`
+        <div style="width:38px;height:38px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.9rem;flex-shrink:0">${(a.firstName||a.nombre||"?")[0]}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.86rem;font-weight:800;color:#4A3F5C">${a.firstName||a.nombre||"Sin nombre"}</div>
+          <div style="font-size:.72rem;color:#A99EBD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.email||uid}</div>
+        </div>
+        <div style="display:flex;gap:5px">
+          <button onclick="openEditStudentModal('${uid}')"
+            style="padding:5px 10px;border-radius:8px;border:1.5px solid #EDD8F0;background:white;font-size:.74rem;font-weight:700;color:#7A6E8A;cursor:pointer">✏️</button>
+          <button onclick="deleteStudent('${uid}','${a.email||""}')"
+            style="padding:5px 10px;border-radius:8px;border:1.5px solid #FFB3C0;background:white;font-size:.74rem;font-weight:700;color:#D45B6A;cursor:pointer">🗑</button>
+        </div>`;
+      list.appendChild(card);
+    });
+  }).catch(()=>{
+    list.innerHTML=`<div style="color:#D45B6A;padding:12px;grid-column:1/-1">⚠️ Error al cargar alumnas</div>`;
+  });
+}
+
+function autoFillStudentEmail(){
+  const firstName=(document.getElementById("st-firstname")?.value||"").trim().toLowerCase().replace(/\s+/g,"");
+  const emailEl=document.getElementById("st-email");
+  if(emailEl&&firstName&&!emailEl.dataset.manualEdit) emailEl.value=firstName;
+}
+
+function genPassword(){
+  const chars="abcdefghjkmnpqrstuvwxyz23456789";
+  let pass="";for(let i=0;i<8;i++) pass+=chars[Math.floor(Math.random()*chars.length)];
+  const inp=document.getElementById("st-pass");
+  if(inp){inp.value=pass;inp.type="text";}
+}
+
+function openCreateStudentModal(){
+  document.getElementById("st-uid").value="";
+  document.getElementById("st-nombre").value="";
+  document.getElementById("st-firstname").value="";
+  document.getElementById("st-email").value="";
+  document.getElementById("st-email").dataset.manualEdit="";
+  document.getElementById("st-pass").value="";
+  document.getElementById("st-error").style.display="none";
+  document.getElementById("st-success").style.display="none";
+  document.getElementById("modal-student-title").textContent="✨ Nueva alumna";
+  document.getElementById("st-save-btn").textContent="Crear alumna ✨";
+  document.getElementById("modal-student").style.display="flex";
+  setTimeout(()=>document.getElementById("st-nombre").focus(),200);
+}
+
+function openEditStudentModal(uid){
+  db.ref("pedagogia/alumnos/"+uid).once("value").then(snap=>{
+    const a=snap.val()||{};
+    document.getElementById("st-uid").value=uid;
+    document.getElementById("st-nombre").value=a.nombre||"";
+    document.getElementById("st-firstname").value=a.firstName||"";
+    document.getElementById("st-email").value=(a.email||"").replace("@blackai.com","");
+    document.getElementById("st-email").dataset.manualEdit="1";
+    document.getElementById("st-pass").value="";
+    document.getElementById("st-error").style.display="none";
+    document.getElementById("st-success").style.display="none";
+    document.getElementById("modal-student-title").textContent="✏️ Editar alumna";
+    document.getElementById("st-save-btn").textContent="Guardar cambios";
+    document.getElementById("modal-student").style.display="flex";
+  });
+}
+
+function saveStudent(){
+  const uid=document.getElementById("st-uid").value;
+  const nombre=(document.getElementById("st-nombre").value||"").trim().toUpperCase();
+  const firstName=(document.getElementById("st-firstname").value||"").trim().toUpperCase();
+  const emailUser=(document.getElementById("st-email").value||"").trim().toLowerCase().replace(/\s+/g,"");
+  const pass=(document.getElementById("st-pass").value||"").trim();
+  const errEl=document.getElementById("st-error");
+  const sucEl=document.getElementById("st-success");
+  errEl.style.display="none";sucEl.style.display="none";
+  if(!nombre){errEl.textContent="⚠️ Ingresa el nombre completo";errEl.style.display="block";return;}
+  if(!firstName){errEl.textContent="⚠️ Ingresa el nombre de pila";errEl.style.display="block";return;}
+  if(!emailUser){errEl.textContent="⚠️ Ingresa el correo";errEl.style.display="block";return;}
+  const email=emailUser.includes("@")?emailUser:emailUser+"@blackai.com";
+  const btn=document.getElementById("st-save-btn");
+  btn.textContent="⏳ Guardando...";btn.disabled=true;
+  if(!uid){
+    // CREATE — use secondary Firebase app so teacher stays signed in
+    if(!pass||pass.length<6){errEl.textContent="⚠️ La contraseña debe tener al menos 6 caracteres";errEl.style.display="block";btn.textContent="Crear alumna ✨";btn.disabled=false;return;}
+    const teacherUser=auth.currentUser;
+    // Create secondary app to avoid signing out teacher
+    const secondaryApp=firebase.apps.find(a=>a.name==="secondary")||firebase.initializeApp({
+      apiKey:"AIzaSyDIucPhIp0gSLPcmCUTYrY7CJx5LYBzCQU",
+      authDomain:"foro-ee8a5.firebaseapp.com"
+    },"secondary");
+    const secondaryAuth=secondaryApp.auth();
+    secondaryAuth.createUserWithEmailAndPassword(email,pass).then(cred=>{
+      const newUid=cred.user.uid;
+      secondaryAuth.signOut();
+      const studentRecord={nombre,firstName,email,id:emailUser.split("@")[0],createdAt:Date.now(),createdBy:teacherUser?.email||"docente"};
+      return db.ref("pedagogia/alumnos/"+newUid).set(studentRecord);
+    }).then(()=>{
+      sucEl.textContent="✅ Cuenta creada: "+email+" · Contraseña: "+pass;sucEl.style.display="block";
+      btn.textContent="Crear alumna ✨";btn.disabled=false;
+      document.getElementById("st-nombre").value="";
+      document.getElementById("st-firstname").value="";
+      document.getElementById("st-email").value="";
+      document.getElementById("st-pass").value="";
+      loadStudentManager();
+    }).catch(e=>{
+      errEl.textContent=e.code==="auth/email-already-in-use"?"⚠️ Ese correo ya existe":"⚠️ "+e.message;
+      errEl.style.display="block";btn.textContent="Crear alumna ✨";btn.disabled=false;
+    });
+  } else {
+    // UPDATE existing student record
+    const updates={nombre,firstName,email};
+    db.ref("pedagogia/alumnos/"+uid).update(updates).then(()=>{
+      if(pass&&pass.length>=6){
+        // Update password — requires re-auth, skip for now and show note
+        sucEl.textContent="✅ Datos actualizados. Para cambiar contraseña, usa Firebase Console por ahora.";
+      } else {
+        sucEl.textContent="✅ Alumna actualizada correctamente";
+      }
+      sucEl.style.display="block";btn.textContent="Guardar cambios";btn.disabled=false;
+      loadStudentManager();
+    }).catch(e=>{
+      errEl.textContent="⚠️ "+e.message;errEl.style.display="block";btn.textContent="Guardar cambios";btn.disabled=false;
+    });
+  }
+}
+
+function deleteStudent(uid,email){
+  if(!confirm("¿Eliminar a "+email+"? Esto eliminará su perfil de la base de datos (su cuenta de Firebase Auth permanece).")) return;
+  db.ref("pedagogia/alumnos/"+uid).remove().then(()=>{
+    toast("🗑 Alumna eliminada");loadStudentManager();
+  });
+}
+
 function updateSessionName(sid,val){
   clearTimeout(window["nt_"+sid]);
   window["nt_"+sid]=setTimeout(()=>db.ref("pedagogia/sesiones_config/"+sid+"/nombre").set(val),800);
@@ -2021,21 +2508,59 @@ function showMod(id){
   let mainContent="";
 
   if(d.type==="intro"){
+    // Initialize objectives if not set — save to modData immediately
+    if(!d.objectives || d.objectives.length===0){
+      d.objectives=["Objetivo 1: Conocer los fundamentos de la pedagogía digital","Objetivo 2: Identificar tipos de EVA","Objetivo 3: Diseñar una secuencia básica"];
+      modData[id].objectives=d.objectives;
+      // Don't autosave yet — wait for user to edit
+    }
+    const objHtml=d.objectives.map((obj,i)=>
+      `<li contenteditable="true" id="obj-${id}-${i}"
+        style="outline:none;padding:2px 4px;border-radius:4px;transition:background .2s"
+        onfocus="this.style.background='rgba(255,143,163,.08)'"
+        onblur="saveObjective('${id}',${i},this.textContent);this.style.background=''"
+        oninput="debouncedSaveObjective('${id}',${i},this)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+      >${obj}</li>`
+    ).join("");
     mainContent=`
-      <div class="cb"><h3 contenteditable="true" id="mod-main-h3">${d.title}</h3><p contenteditable="true" id="mod-main-p">${d.desc}</p>
-      <ul><li contenteditable="true">Objetivo 1: Conocer los fundamentos de la pedagogía digital</li>
-      <li contenteditable="true">Objetivo 2: Identificar tipos de EVA</li>
-      <li contenteditable="true">Objetivo 3: Diseñar una secuencia básica</li></ul></div>`;
+      <div class="cb">
+        <h3 contenteditable="true" id="mod-main-h3"
+          onblur="saveModField('${id}','title',this.textContent)"
+          style="outline:none"
+        >${d.title}</h3>
+        <p contenteditable="true" id="mod-main-p"
+          onblur="saveModField('${id}','desc',this.textContent)"
+          style="outline:none"
+        >${d.desc}</p>
+        <div style="display:flex;align-items:center;gap:8px;margin:10px 0 5px">
+          <ul id="obj-list-${id}" style="margin:0;padding-left:18px">${objHtml}</ul>
+        </div>
+        <button onclick="addObjective('${id}')"
+          style="margin-top:6px;background:none;border:1.5px dashed var(--accent);color:var(--accent);border-radius:7px;padding:3px 10px;font-family:'Nunito',sans-serif;font-size:.76rem;font-weight:700;cursor:pointer">
+          + Agregar objetivo
+        </button>
+      </div>`;
   } else if(d.type==="video"){
     mainContent=`
-      <div class="cb"><h3 contenteditable="true">${d.title}</h3><p contenteditable="true">${d.desc}</p></div>
+      <div class="cb">
+        <h3 contenteditable="true" id="mod-main-h3" style="outline:none"
+          onblur="saveModField('${id}','title',this.textContent)">${d.title}</h3>
+        <p contenteditable="true" id="mod-main-p" style="outline:none"
+          onblur="saveModField('${id}','desc',this.textContent)">${d.desc}</p>
+      </div>
       <div id="vid-container-${id}">${d.url?"<div id='vc-inner'></div>":""}</div>
       <div class="url-helper">💡 <strong>YouTube:</strong> pega el link normal (abre en YouTube) · <strong>Vimeo/Drive:</strong> se reproduce aquí directamente<br>⚠️ Si usas Google Drive: el video debe estar en <strong>"Compartir → Cualquier persona con el enlace"</strong></div>
       <input class="url-input" id="panel-vurl" value="${d.url||""}" placeholder="🔗 URL del video...">
       <button class="load-btn" onclick="loadModVid('${id}')">Cargar ▶</button>`;
   } else if(d.type==="lectura"){
     mainContent=`
-      <div class="cb"><h3 contenteditable="true">${d.title}</h3><p contenteditable="true">${d.desc}</p></div>
+      <div class="cb">
+        <h3 contenteditable="true" id="mod-main-h3" style="outline:none"
+          onblur="saveModField('${id}','title',this.textContent)">${d.title}</h3>
+        <p contenteditable="true" id="mod-main-p" style="outline:none"
+          onblur="saveModField('${id}','desc',this.textContent)">${d.desc}</p>
+      </div>
       <div class="url-helper" style="background:rgba(184,240,216,.2);border:1px solid rgba(42,157,106,.25);border-radius:9px;padding:8px 12px;margin-bottom:10px;font-size:.76rem;color:#2A5A3A;line-height:1.7">
         ✅ <strong>Cómo compartir un PDF de Google Drive:</strong><br>
         1. Abre el archivo en Drive → clic en <strong>"Compartir"</strong><br>
@@ -2147,6 +2672,75 @@ function getCompLabel(t){
   const m={ninguno:"Automático",ver_video:"Ver el video",foro:"Participar en el foro",quiz:"Responder el quiz",actividad:"Completar la actividad",apuntes:"Escribir apuntes"};
   return m[t]||t;
 }
+/* ══ EDICIÓN DE OBJETIVOS ══ */
+const _objSaveTimers={};
+function debouncedSaveObjective(modId,idx,el){
+  // Update modData immediately so the data is current
+  if(modData[modId]){
+    if(!modData[modId].objectives) modData[modId].objectives=[];
+    modData[modId].objectives[idx]=el.textContent.trim()||("Objetivo "+(idx+1));
+  }
+  // Debounce the Firebase write
+  clearTimeout(_objSaveTimers["obj-"+modId]);
+  _objSaveTimers["obj-"+modId]=setTimeout(()=>flushObjectives(modId),800);
+}
+function saveObjective(modId,idx,text){
+  if(!modData[modId]) return;
+  // Capture FULL list from DOM
+  const objList=document.getElementById("obj-list-"+modId);
+  if(objList){
+    modData[modId].objectives=Array.from(objList.querySelectorAll("li"))
+      .map(li=>li.textContent.trim()).filter(t=>t);
+  } else {
+    if(!modData[modId].objectives) modData[modId].objectives=[];
+    modData[modId].objectives[idx]=text.trim()||("Objetivo "+(idx+1));
+  }
+  flushObjectives(modId);
+}
+function flushObjectives(modId){
+  // Capture full DOM list one more time before writing
+  const objList=document.getElementById("obj-list-"+modId);
+  if(objList&&modData[modId]){
+    const items=Array.from(objList.querySelectorAll("li")).map(li=>li.textContent.trim()).filter(t=>t);
+    if(items.length>0) modData[modId].objectives=items;
+  }
+  triggerAutoSave();
+}
+function addObjective(modId){
+  if(!modData[modId]) return;
+  if(!modData[modId].objectives) modData[modId].objectives=[];
+  const newIdx=modData[modId].objectives.length;
+  modData[modId].objectives.push("Nuevo objetivo");
+  const list=document.getElementById("obj-list-"+modId);
+  if(list){
+    const li=document.createElement("li");
+    li.contentEditable="true";
+    li.id="obj-"+modId+"-"+newIdx;
+    li.textContent="Nuevo objetivo";
+    li.style.cssText="outline:none;padding:2px 4px;border-radius:4px;transition:background .2s";
+    li.addEventListener("focus",()=>li.style.background="rgba(255,143,163,.08)");
+    li.addEventListener("blur",()=>{li.style.background="";flushObjectives(modId);});
+    li.addEventListener("input",()=>{
+      if(modData[modId]&&modData[modId].objectives)
+        modData[modId].objectives[newIdx]=li.textContent.trim();
+      clearTimeout(_objSaveTimers["obj-"+modId]);
+      _objSaveTimers["obj-"+modId]=setTimeout(()=>flushObjectives(modId),800);
+    });
+    li.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();li.blur();}});
+    list.appendChild(li);
+    li.focus();
+    // Select all text
+    const range=document.createRange();range.selectNodeContents(li);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+  }
+  triggerAutoSave();
+}
+function saveModField(modId,field,text){
+  if(!modData[modId]) return;
+  modData[modId][field]=text.trim();
+  triggerAutoSave();
+}
+
 function setCompTrigger(modId,val,btn){
   if(modData[modId]) modData[modId].compTrigger=val;
   document.querySelectorAll(".comp-opt").forEach(b=>b.classList.remove("selected"));
@@ -2591,6 +3185,8 @@ function confirmNewMod(){
   triggerAutoSave();
   logChange("Módulo creado: "+name+" ("+type+")");
   toast("✨ Módulo creado");
+  // Auto-navigate to the new module immediately
+  showMod(uid);
 }
 function confirmUnit(){
   const name=document.getElementById("unit-name").value.trim()||"Nueva Unidad";
@@ -3352,7 +3948,9 @@ function insertInlineNote(modId){
     <div contenteditable="true" id="note-content-${uid}"
       style="min-height:80px;padding:12px 16px;border-radius:0 0 10px 10px;border:2px solid rgba(255,143,163,.3);border-top:none;background:rgba(255,255,255,.95);font-family:inherit;font-size:.9rem;color:#4A3F5C;outline:none;line-height:1.8"
       onfocus="this.style.borderColor='var(--accent)'"
-      onblur="saveInlineNote('${uid}','${modId}')">Escribe aquí tu nota...</div>`;
+      onblur="saveInlineNote('${uid}','${modId}')"
+      onpaste="handleNotePaste(event,'${uid}','${modId}')"
+    >Escribe aquí tu nota...</div>`;
   container.appendChild(div);
   setTimeout(()=>div.querySelector("[contenteditable]")?.focus(),50);
   if(modId&&modData[modId]){
@@ -3360,12 +3958,96 @@ function insertInlineNote(modId){
     modData[modId].subBlocks.push({uid,type:"texto",title:"Nota",url:"",desc:"",isRichText:true});
   }
 }
+/* ══ IMAGE INSERT & RESIZE ══ */
 function promptInsertImage(uid){
   const url=prompt("🖼 URL de la imagen (pega el link directo):");
   if(!url) return;
   const el=document.getElementById("note-content-"+uid);
-  if(el){el.focus();document.execCommand("insertImage",false,url);}
+  if(!el) return;
+  el.focus();
+  // Insert image as resizable wrapper instead of raw execCommand
+  const imgId="img-"+Date.now();
+  const wrapper=document.createElement("span");
+  wrapper.contentEditable="false";
+  wrapper.className="resizable-img-wrap";
+  wrapper.id=imgId;
+  wrapper.style.cssText="display:inline-block;position:relative;user-select:none;max-width:100%;vertical-align:top;margin:4px;";
+  wrapper.innerHTML=`
+    <img src="${url}" style="width:220px;height:auto;display:block;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.12)" draggable="false">
+    <span class="img-resize-handle" title="Arrastra para cambiar tamaño"
+      style="position:absolute;bottom:-5px;right:-5px;width:16px;height:16px;background:#fff;border:2px solid var(--accent);border-radius:50%;cursor:se-resize;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+    </span>
+    <span class="img-resize-label"
+      style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.45);color:white;font-size:.62rem;padding:1px 5px;border-radius:4px;pointer-events:none;font-family:'Nunito',sans-serif;opacity:0;transition:opacity .2s">
+    </span>`;
+  // Insert at cursor or append
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount>0&&el.contains(sel.anchorNode)){
+    const range=sel.getRangeAt(0);range.collapse(false);range.insertNode(wrapper);
+    range.setStartAfter(wrapper);range.collapse(true);sel.removeAllRanges();sel.addRange(range);
+  } else {
+    el.appendChild(wrapper);
+  }
+  initImageResize(wrapper,uid);
+  // Show handle on hover
+  const img=wrapper.querySelector("img");
+  const label=wrapper.querySelector(".img-resize-label");
+  wrapper.addEventListener("mouseenter",()=>{label.style.opacity="1";label.textContent=Math.round(img.offsetWidth)+"px";});
+  wrapper.addEventListener("mouseleave",()=>{label.style.opacity="0";});
 }
+
+function initImageResize(wrapper,uid){
+  const handle=wrapper.querySelector(".img-resize-handle");
+  const img=wrapper.querySelector("img");
+  const label=wrapper.querySelector(".img-resize-label");
+  if(!handle||!img) return;
+  let startX,startW;
+  handle.addEventListener("mousedown",e=>{
+    e.preventDefault();e.stopPropagation();
+    startX=e.clientX;startW=img.offsetWidth;
+    handle.style.background="var(--accent)";
+    const onMove=ev=>{
+      const newW=Math.max(60,Math.min(900,startW+(ev.clientX-startX)));
+      img.style.width=newW+"px";
+      if(label){label.style.opacity="1";label.textContent=Math.round(newW)+"px";}
+    };
+    const onUp=()=>{
+      document.removeEventListener("mousemove",onMove);
+      document.removeEventListener("mouseup",onUp);
+      handle.style.background="#fff";
+      if(label) label.style.opacity="0";
+      saveInlineNote(uid,currentModId);
+    };
+    document.addEventListener("mousemove",onMove);
+    document.addEventListener("mouseup",onUp);
+  });
+  // Touch support
+  handle.addEventListener("touchstart",e=>{
+    e.preventDefault();e.stopPropagation();
+    startX=e.touches[0].clientX;startW=img.offsetWidth;
+    const onMove=ev=>{
+      const newW=Math.max(60,Math.min(900,startW+(ev.touches[0].clientX-startX)));
+      img.style.width=newW+"px";
+      if(label){label.style.opacity="1";label.textContent=Math.round(newW)+"px";}
+    };
+    const onUp=()=>{
+      handle.removeEventListener("touchmove",onMove);
+      handle.removeEventListener("touchend",onUp);
+      if(label) label.style.opacity="0";
+      saveInlineNote(uid,currentModId);
+    };
+    handle.addEventListener("touchmove",onMove,{passive:false});
+    handle.addEventListener("touchend",onUp);
+  },{passive:false});
+}
+
+/* Re-init resize handles when loading saved notes */
+function initAllImageResizeInNote(uid){
+  const el=document.getElementById("note-content-"+uid);
+  if(!el) return;
+  el.querySelectorAll(".resizable-img-wrap").forEach(w=>initImageResize(w,uid));
+}
+
 function saveInlineNote(uid,modId){
   const el=document.getElementById("note-content-"+uid);
   if(!el) return;
@@ -3375,6 +4057,43 @@ function saveInlineNote(uid,modId){
     if(sb){sb.desc=html;sb.isRichText=true;}
   }
   triggerAutoSave();
+}
+
+/* Handle paste of images into note */
+function handleNotePaste(e,uid,modId){
+  const items=e.clipboardData?.items;
+  if(!items) return;
+  for(const item of items){
+    if(item.type.startsWith("image/")){
+      e.preventDefault();
+      const file=item.getAsFile();
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const url=ev.target.result; // base64 data URL
+        const el=document.getElementById("note-content-"+uid);
+        if(!el) return;
+        const imgId="img-"+Date.now();
+        const wrapper=document.createElement("span");
+        wrapper.contentEditable="false";
+        wrapper.className="resizable-img-wrap";
+        wrapper.id=imgId;
+        wrapper.style.cssText="display:inline-block;position:relative;user-select:none;max-width:100%;vertical-align:top;margin:4px;";
+        wrapper.innerHTML=`<img src="${url}" style="width:220px;height:auto;display:block;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.12)" draggable="false"><span class="img-resize-handle" style="position:absolute;bottom:-5px;right:-5px;width:16px;height:16px;background:#fff;border:2px solid var(--accent);border-radius:50%;cursor:se-resize;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.2)"></span><span class="img-resize-label" style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.45);color:white;font-size:.62rem;padding:1px 5px;border-radius:4px;pointer-events:none;font-family:'Nunito',sans-serif;opacity:0;transition:opacity .2s"></span>`;
+        const sel=window.getSelection();
+        if(sel&&sel.rangeCount>0&&el.contains(sel.anchorNode)){
+          const range=sel.getRangeAt(0);range.collapse(false);range.insertNode(wrapper);
+          range.setStartAfter(wrapper);range.collapse(true);sel.removeAllRanges();sel.addRange(range);
+        } else {el.appendChild(wrapper);}
+        initImageResize(wrapper,uid);
+        const img=wrapper.querySelector("img"),label=wrapper.querySelector(".img-resize-label");
+        wrapper.addEventListener("mouseenter",()=>{label.style.opacity="1";label.textContent=Math.round(img.offsetWidth)+"px";});
+        wrapper.addEventListener("mouseleave",()=>{label.style.opacity="0";});
+        saveInlineNote(uid,modId);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
 }
 
 /* ══ DESIGN SYNC ══ */
