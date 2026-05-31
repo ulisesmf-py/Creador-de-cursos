@@ -850,7 +850,7 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
         <p style="color:rgba(255,255,255,.85);font-size:.86rem;margin-top:3px">Monitorea, califica y retroalimenta el trabajo de cada equipo en tiempo real</p>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button onclick="openCreateStudentModal()"
+        <button onclick="window.open('https://new-student.pages.dev','_blank')"
           style="padding:10px 22px;border-radius:12px;border:none;background:white;color:#9B72CF;font-family:'Nunito',sans-serif;font-weight:800;font-size:.88rem;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 2px 12px rgba(0,0,0,.12)">
           👩‍🎓 ＋ Nueva alumna
         </button>
@@ -973,7 +973,7 @@ auth.signInAnonymously().catch(err=>console.warn("Auth anónimo:",err.message));
 const TEACHER_PASS = "cuicalli666";
 
 /* ══ LISTA COMPLETA DE ALUMNAS ══ */
-// Students are loaded from Firebase /pedagogia/alumnos — not hardcoded
+// Students are loaded from Firebase /students — managed via new-student.pages.dev
 const ALL_STUDENTS=[];
 
 /* Expanded icon set */
@@ -1482,23 +1482,22 @@ function openJoinModal(id, s){
     return;
   }
 
-  // Load student profiles from Firebase to get real names
+  // Load student profiles from /students (new unified path)
   const promises=alumnos.map(aid=>
-    db.ref("pedagogia/alumnos").orderByChild("id").equalTo(aid).once("value").then(snap=>{
+    db.ref("students").orderByChild("username").equalTo(aid).once("value").then(snap=>{
       const val=snap.val();
       if(val){
         const uid=Object.keys(val)[0];
-        return {uid, ...val[uid]};
+        const s=val[uid];
+        return {uid, id:s.username||aid, firstName:(s.name||aid).split(" ")[0], nombre:s.name||aid, email:s.email||(aid+"@student.blackai.com")};
       }
-      // Fallback to ALL_STUDENTS list
-      const st=ALL_STUDENTS.find(x=>x.id===aid);
-      if(st) return {id:aid, firstName:st.firstName, nombre:st.nombre, email:(st.firstName||aid).toLowerCase()+"@student.blackai.com"};
-      return null;
-    }).catch(()=>{
-      const st=ALL_STUDENTS.find(x=>x.id===aid);
-      if(st) return {id:aid, firstName:st.firstName, nombre:st.nombre, email:(st.firstName||aid).toLowerCase()+"@student.blackai.com"};
-      return null;
-    })
+      // Fallback: try by uid directly
+      return db.ref("students/"+aid).once("value").then(s2=>{
+        const s=s2.val();
+        if(s) return {uid:aid, id:s.username||aid, firstName:(s.name||aid).split(" ")[0], nombre:s.name||aid, email:s.email||(aid+"@student.blackai.com")};
+        return {uid:aid, id:aid, firstName:aid, nombre:aid, email:aid+"@student.blackai.com"};
+      });
+    }).catch(()=>({uid:aid, id:aid, firstName:aid, nombre:aid, email:aid+"@student.blackai.com"}))
   );
 
   Promise.all(promises).then(students=>{
@@ -1553,9 +1552,9 @@ function doJoinSession(){
   // Sign in with Firebase Auth
   auth.signInWithEmailAndPassword(_selectedStudentEmail, pass).then(cred=>{
     const uid=cred.user.uid;
-    db.ref("pedagogia/alumnos/"+uid).once("value").then(snap=>{
-      const studentData=snap.val()||{};
-      const firstName=studentData.firstName||_selectedStudentEmail.split("@")[0].toUpperCase();
+    db.ref("students/"+uid).once("value").then(snap=>{
+      const s=snap.val()||{};
+      const firstName=(s.name||_selectedStudentEmail.split("@")[0]).split(" ")[0].toUpperCase();
       cM("modal-join-session");
       currentSession={id:pendingSessionId,...pendingSession};
       currentMember={name:firstName, uid, joinedAt:Date.now()};
@@ -1603,8 +1602,7 @@ function setupPresence(){
   presenceRef.onDisconnect().remove();
 
   // Show own badge with first name
-  const studentRecord=ALL_STUDENTS.find(s=>s.nombre===currentMember.name);
-  const myFirst=studentRecord?.firstName||currentMember.name.split(" ")[0];
+  const myFirst=currentMember.name||"Yo";
   const ownBadge=document.getElementById("own-presence-badge");
   const ownName=document.getElementById("own-name-badge");
   if(ownName) ownName.textContent=myFirst;
@@ -1717,9 +1715,8 @@ function enterApp(){
   document.getElementById("screen-app").style.display="block";
   document.getElementById("main-nav").style.display="flex";
 
-  // Get actual first name from student record
-  const studentRecord=ALL_STUDENTS.find(s=>s.nombre===currentMember.name);
-  const firstName=studentRecord?.firstName||currentMember.name.split(" ")[0];
+  // Get first name from /students record
+  const firstName=currentMember.name||"Alumna";
 
   document.getElementById("hero-name").textContent=firstName;
   document.getElementById("nav-uname").textContent=firstName;
@@ -2081,33 +2078,32 @@ function loadStudentManager(){
   const list=document.getElementById("student-manager-list");
   if(!list) return;
   list.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-soft);grid-column:1/-1">⏳ Cargando...</div>`;
-  db.ref("pedagogia/alumnos").once("value").then(snap=>{
-    const alumnos=snap.val()||{};
-    const entries=Object.entries(alumnos);
+  db.ref("students").once("value").then(snap=>{
+    const data=snap.val()||{};
+    const entries=Object.entries(data);
     if(!entries.length){
-      list.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text-soft);grid-column:1/-1;font-size:.9rem">No hay alumnas registradas aún.<br>Haz clic en <b>＋ Nueva alumna</b> para comenzar.</div>`;
+      list.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text-soft);grid-column:1/-1;font-size:.9rem">No hay alumnas registradas.<br><a href="https://new-student.pages.dev" target="_blank" style="color:#9B72CF;font-weight:700">Ir a gestión de alumnos →</a></div>`;
       return;
     }
     list.innerHTML="";
-    entries.forEach(([uid,a])=>{
+    entries.sort((a,b)=>(a[1].name||"").localeCompare(b[1].name||"")).forEach(([uid,a])=>{
+      const firstName=(a.name||a.username||"?").split(" ")[0];
+      const mats=Array.isArray(a.materias)?a.materias:a.materia?[a.materia]:[];
       const card=document.createElement("div");
       card.style.cssText="background:white;border-radius:14px;padding:14px 16px;border:1.5px solid rgba(212,184,255,.2);display:flex;align-items:center;gap:12px;";
       card.innerHTML=`
-        <div style="width:38px;height:38px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.9rem;flex-shrink:0">${(a.firstName||a.nombre||"?")[0]}</div>
+        <div style="width:38px;height:38px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.9rem;flex-shrink:0">${firstName[0].toUpperCase()}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:.86rem;font-weight:800;color:#4A3F5C">${a.firstName||a.nombre||"Sin nombre"}</div>
+          <div style="font-size:.86rem;font-weight:800;color:#4A3F5C">${a.name||a.username||"Sin nombre"}</div>
           <div style="font-size:.72rem;color:#A99EBD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.email||uid}</div>
+          ${mats.length?`<div style="font-size:.68rem;color:#9B72CF;margin-top:2px">${mats.join(" · ")}</div>`:""}
         </div>
-        <div style="display:flex;gap:5px">
-          <button onclick="openEditStudentModal('${uid}')"
-            style="padding:5px 10px;border-radius:8px;border:1.5px solid #EDD8F0;background:white;font-size:.74rem;font-weight:700;color:#7A6E8A;cursor:pointer">✏️</button>
-          <button onclick="deleteStudent('${uid}','${a.email||""}')"
-            style="padding:5px 10px;border-radius:8px;border:1.5px solid #FFB3C0;background:white;font-size:.74rem;font-weight:700;color:#D45B6A;cursor:pointer">🗑</button>
-        </div>`;
+        <a href="https://new-student.pages.dev" target="_blank"
+          style="padding:5px 10px;border-radius:8px;border:1.5px solid #EDD8F0;background:white;font-size:.74rem;font-weight:700;color:#7A6E8A;cursor:pointer;text-decoration:none">✏️ Gestionar</a>`;
       list.appendChild(card);
     });
   }).catch(()=>{
-    list.innerHTML=`<div style="color:#D45B6A;padding:12px;grid-column:1/-1">⚠️ Error al cargar alumnas</div>`;
+    list.innerHTML=`<div style="color:#D45B6A;padding:12px;grid-column:1/-1">⚠️ Error. <a href="https://new-student.pages.dev" target="_blank" style="color:#9B72CF">Ir a gestión de alumnos →</a></div>`;
   });
 }
 
@@ -2140,7 +2136,7 @@ function openCreateStudentModal(){
 }
 
 function openEditStudentModal(uid){
-  db.ref("pedagogia/alumnos/"+uid).once("value").then(snap=>{
+  db.ref("students/"+uid).once("value").then(snap=>{
     const a=snap.val()||{};
     document.getElementById("st-uid").value=uid;
     document.getElementById("st-nombre").value=a.nombre||"";
@@ -2185,7 +2181,7 @@ function saveStudent(){
       const newUid=cred.user.uid;
       secondaryAuth.signOut();
       const studentRecord={nombre,firstName,email,id:emailUser.split("@")[0],createdAt:Date.now(),createdBy:teacherUser?.email||"docente"};
-      return db.ref("pedagogia/alumnos/"+newUid).set(studentRecord);
+      return db.ref("students/"+newUid).set({name:nombre,username:emailUser.split("@")[0],email:email,createdBy:auth.currentUser?.email||"docente",createdAt:Date.now()});
     }).then(()=>{
       sucEl.textContent="✅ Cuenta creada: "+email+" · Contraseña: "+pass;sucEl.style.display="block";
       btn.textContent="Crear alumna ✨";btn.disabled=false;
@@ -2201,7 +2197,7 @@ function saveStudent(){
   } else {
     // UPDATE existing student record
     const updates={nombre,firstName,email};
-    db.ref("pedagogia/alumnos/"+uid).update(updates).then(()=>{
+    db.ref("students/"+uid).update({name:nombre,username:emailUser.split("@")[0],email:email}).then(()=>{
       if(pass&&pass.length>=6){
         // Update password — requires re-auth, skip for now and show note
         sucEl.textContent="✅ Datos actualizados. Para cambiar contraseña, usa Firebase Console por ahora.";
@@ -2218,7 +2214,7 @@ function saveStudent(){
 
 function deleteStudent(uid,email){
   if(!confirm("¿Eliminar a "+email+"? Esto eliminará su perfil de la base de datos (su cuenta de Firebase Auth permanece).")) return;
-  db.ref("pedagogia/alumnos/"+uid).remove().then(()=>{
+  db.ref("students/"+uid).remove().then(()=>{
     toast("🗑 Alumna eliminada");loadStudentManager();
   });
 }
@@ -2249,10 +2245,12 @@ function saveStudentAssignment(sid,slot,studentId){
 }
 function renderStudentAssigner(sid,alumnos,container){
   container.innerHTML=`<p style="font-size:.76rem;color:#A99EBD">⏳ Cargando alumnas...</p>`;
-  // Load students from Firebase
-  db.ref("pedagogia/alumnos").once("value").then(snap=>{
+  db.ref("students").once("value").then(snap=>{
     const data=snap.val()||{};
-    const students=Object.entries(data).map(([uid,a])=>({uid,id:a.id||uid,nombre:a.nombre||a.firstName||uid,firstName:a.firstName||a.nombre||uid}));
+    const students=Object.entries(data).map(([uid,a])=>{
+      const mats=Array.isArray(a.materias)?a.materias:a.materia?[a.materia]:[];
+      return {uid, id:a.username||uid, nombre:a.name||a.username||uid, firstName:(a.name||"").split(" ")[0]||a.username, email:a.email||"", materias:mats};
+    }).sort((a,b)=>a.nombre.localeCompare(b.nombre));
     const slot0=alumnos[0]||"";
     const slot1=alumnos[1]||"";
     const opts=`<option value="">— Sin asignar —</option>`+
@@ -2281,7 +2279,7 @@ function renderStudentAssigner(sid,alumnos,container){
       if(sels[1]&&slot1) sels[1].value=slot1;
     },50);
   }).catch(()=>{
-    container.innerHTML=`<p style="font-size:.76rem;color:#E05A5A">⚠️ Error al cargar alumnas</p>`;
+    container.innerHTML=`<p style="font-size:.76rem;color:#E05A5A">⚠️ Error al cargar. <a href="https://new-student.pages.dev" target="_blank" style="color:#9B72CF">Ir a gestión de alumnos →</a></p>`;
   });
 }
 function saveGrade(sid,mid,grade){
