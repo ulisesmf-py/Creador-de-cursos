@@ -223,7 +223,7 @@ nav{background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:2px solid 
 .mg-score{font-size:.78rem;color:var(--text-soft);text-align:right;margin-top:6px;}
 
 /* PDF */
-.pdf-viewer{width:100%;height:600px;border:none;border-radius:12px;display:block;margin-bottom:10px;}
+.pdf-viewer{width:100%;height:720px;border:none;border-radius:12px;display:block;margin-bottom:10px;}
 
 /* Panel bottom */
 .panel-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:14px;border-top:2px solid rgba(212,184,255,.2);flex-wrap:wrap;gap:8px;}
@@ -680,6 +680,10 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
       <div class="sec-title">📚 <span>MOOC</span></div>
       <div class="sec-actions">
         <button class="preview-btn" onclick="openPreview('mooc')">👁 Vista previa</button>
+        <button onclick="publishCourse()" id="publish-btn"
+          style="display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border-radius:11px;border:none;background:linear-gradient(135deg,#4DD9AC,#5BA3F5);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.81rem;cursor:pointer">
+          🚀 Publicar
+        </button>
       </div>
     </div>
     <div class="mooc-outer">
@@ -2675,7 +2679,30 @@ function showMod(id){
     <div style="margin-top:18px;padding-top:14px;border-top:2px solid rgba(212,184,255,.2)">${compHtml}</div>
     <div class="panel-bottom">
       <div class="completion-hint">🎯 Completa: <strong>${getCompLabel(d.compTrigger)}</strong></div>
-      ${nextId?`<button class="nav-btn-sm nxt" onclick="showMod('${nextId}')">Continuar →</button>`:"<span style='font-size:.8rem;color:var(--text-soft)'>🎉 ¡Fin del módulo!</span>"}
+      ${nextId
+        ?`<button class="nav-btn-sm nxt" onclick="showMod('${nextId}')">Continuar →</button>`
+        :`<button class="nav-btn-sm nxt" onclick="showCourseRating()" style="background:linear-gradient(135deg,#4DD9AC,#5BA3F5)">🏁 Finalizar curso</button>`
+      }
+    </div>
+    ${!nextId?`
+    <div id="course-rating-panel" style="display:none;margin-top:20px;background:linear-gradient(135deg,rgba(77,217,172,.08),rgba(91,163,245,.08));border:1.5px solid rgba(77,217,172,.25);border-radius:16px;padding:22px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:8px">🌟</div>
+      <h3 style="font-family:'Pacifico',cursive;font-size:1.1rem;background:linear-gradient(135deg,#4DD9AC,#5BA3F5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px">¡Curso completado!</h3>
+      <p style="font-size:.85rem;color:#7A6E8A;margin-bottom:16px">¿Cómo calificarías este curso?</p>
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:16px" id="rating-stars">
+        ${[1,2,3,4,5].map(n=>`<button onclick="setRating(${n})" id="star-${n}"
+          style="font-size:1.8rem;background:none;border:none;cursor:pointer;transition:transform .15s;filter:grayscale(1)"
+          onmouseenter="hoverRating(${n})" onmouseleave="resetRatingHover()">⭐</button>`).join("")}
+      </div>
+      <p id="rating-label" style="font-size:.8rem;color:#A99EBD;margin-bottom:14px">Selecciona una calificación</p>
+      <textarea id="rating-comment" placeholder="Comentario opcional sobre el curso..."
+        style="width:100%;padding:10px 14px;border-radius:11px;border:1.5px solid rgba(77,217,172,.3);background:white;font-family:'Nunito',sans-serif;font-size:.85rem;color:#4A3F5C;resize:none;outline:none;margin-bottom:12px;box-sizing:border-box;min-height:70px"
+        onfocus="this.style.borderColor='#4DD9AC'" onblur="this.style.borderColor='rgba(77,217,172,.3)'"></textarea>
+      <button onclick="submitRating()" style="padding:10px 28px;border-radius:12px;border:none;background:linear-gradient(135deg,#4DD9AC,#5BA3F5);color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:.88rem;cursor:pointer">
+        Enviar calificación ✨
+      </button>
+      <div id="rating-sent" style="display:none;margin-top:12px;color:#2A9D6A;font-weight:700;font-size:.85rem">✅ ¡Gracias por tu calificación!</div>
+    </div>`:""}
     </div>`;
 
   /* Cargar video si existe */
@@ -2687,6 +2714,70 @@ function showMod(id){
 function getCompLabel(t){
   const m={ninguno:"Automático",ver_video:"Ver el video",foro:"Participar en el foro",quiz:"Responder el quiz",actividad:"Completar la actividad",apuntes:"Escribir apuntes"};
   return m[t]||t;
+}
+
+/* ══ PUBLICAR CURSO ══ */
+function publishCourse(){
+  if(!currentSession) return;
+  if(!confirm("¿Publicar el curso? Los alumnos verán la versión actual al abrir Vista previa.")) return;
+  saveSession(false).then(()=>{
+    db.ref("pedagogia/s/"+currentSession.id+"/published").set(true).then(()=>{
+      toast("🚀 ¡Curso publicado! Los alumnos ya pueden verlo.");
+      const btn=document.getElementById("publish-btn");
+      if(btn){btn.textContent="✅ Publicado";btn.style.background="linear-gradient(135deg,#4DD9AC,#2A9D6A)";}
+    });
+  });
+}
+
+/* ══ CALIFICACIÓN DEL CURSO ══ */
+let _currentRating=0;
+const RATING_LABELS=["","Muy malo 😞","Malo 😕","Regular 😐","Bueno 😊","Excelente 🌟"];
+
+function showCourseRating(){
+  const panel=document.getElementById("course-rating-panel");
+  if(panel){panel.style.display="block";panel.scrollIntoView({behavior:"smooth"});}
+}
+function hoverRating(n){
+  [1,2,3,4,5].forEach(i=>{
+    const s=document.getElementById("star-"+i);
+    if(s) s.style.filter=i<=n?"grayscale(0)":"grayscale(1)";
+  });
+  const lbl=document.getElementById("rating-label");
+  if(lbl) lbl.textContent=RATING_LABELS[n]||"";
+}
+function resetRatingHover(){
+  hoverRating(_currentRating);
+  const lbl=document.getElementById("rating-label");
+  if(lbl) lbl.textContent=_currentRating?RATING_LABELS[_currentRating]:"Selecciona una calificación";
+}
+function setRating(n){
+  _currentRating=n;
+  [1,2,3,4,5].forEach(i=>{
+    const s=document.getElementById("star-"+i);
+    if(s){s.style.filter=i<=n?"grayscale(0)":"grayscale(1)";s.style.transform=i<=n?"scale(1.15)":"scale(1)";}
+  });
+  const lbl=document.getElementById("rating-label");
+  if(lbl) lbl.textContent=RATING_LABELS[n];
+}
+function submitRating(){
+  if(!_currentRating){toast("⚠️ Selecciona una calificación primero");return;}
+  const comment=(document.getElementById("rating-comment")?.value||"").trim();
+  const ratingData={
+    stars:_currentRating,
+    label:RATING_LABELS[_currentRating],
+    comment,
+    by:currentMember?.name||"Alumna",
+    session:currentSession?.id||"",
+    ts:Date.now()
+  };
+  db.ref("pedagogia/ratings/"+currentSession.id+"/"+Date.now()).set(ratingData).then(()=>{
+    document.getElementById("rating-sent").style.display="block";
+    document.querySelector("#course-rating-panel button[onclick='submitRating()']").style.display="none";
+    toast("✅ ¡Calificación enviada!");
+    markDone(currentModId);
+  }).catch(()=>{
+    toast("⚠️ Error al enviar — intenta de nuevo");
+  });
 }
 /* ══ EDICIÓN DE OBJETIVOS ══ */
 const _objSaveTimers={};
@@ -2793,7 +2884,7 @@ function loadModPDF(id){
   if(errBox) errBox.style.display="none";
   if(cont){
     cont.style.display="block";
-    cont.innerHTML=`<iframe src="${embedUrl}" class="pdf-viewer" style="height:640px"
+    cont.innerHTML=`<iframe src="${embedUrl}" class="pdf-viewer" style="height:720px"
       onload="handlePDFLoad(this,'${id}')"
       onerror="showDriveError('${id}')"></iframe>`;
   }
@@ -2935,7 +3026,7 @@ function renderSubBlock(sb,modId,si){
   } else if(sb.type==="lectura"){
     const pdfEmbed=sb.url?toDriveEmbed(sb.url):"";
     inner=`<div class="sub-block-title">📄 ${sb.title}</div>
-      <div id="sp-${uid}">${pdfEmbed?`<iframe src="${pdfEmbed}" style="width:100%;height:580px;border:none;border-radius:10px;display:block"></iframe>`:""}</div>
+      <div id="sp-${uid}">${pdfEmbed?`<iframe src="${pdfEmbed}" style="width:100%;height:720px;border:none;border-radius:10px;display:block"></iframe>`:""}</div>
       <div class="url-helper">💡 Google Drive → Compartir → Cualquier persona con el enlace → copiar link</div>
       <input class="url-input" value="${sb.url||""}" placeholder="🔗 URL del PDF (Google Drive)" id="spu-${uid}">
       <button class="load-btn" onclick="loadSubPDF('${uid}','spu-${uid}')">Cargar 📄</button>`;
@@ -3004,7 +3095,21 @@ function renderSubBlock(sb,modId,si){
       style="min-height:60px;padding:10px 14px;border-radius:0 0 8px 8px;border:2px solid rgba(255,143,163,.2);border-top:none;background:rgba(255,255,255,.95);font-family:inherit;font-size:.88rem;color:#4A3F5C;outline:none;line-height:1.8"
       onblur="saveInlineNote('${uid}','${modId}')">${isRich?(sb.desc||""):(sb.desc||"Escribe tu nota...")}</div>`;
   }
-  return `<div class="sub-block" id="${uid}">${inner}<button class="del-btn"></button></div>`;
+  return `<div class="sub-block" id="${uid}" style="position:relative">${inner}<button class="del-btn" onclick="delSubBlock('${uid}','${modId}')" style="position:absolute;top:8px;right:8px;z-index:5"></button></div>`;
+}
+
+function delSubBlock(uid,modId){
+  const el=document.getElementById(uid);
+  if(!el) return;
+  el.style.opacity="0";el.style.transition="opacity .25s";
+  setTimeout(()=>{
+    el.remove();
+    if(modData[modId]?.subBlocks){
+      modData[modId].subBlocks=modData[modId].subBlocks.filter(sb=>sb.uid!==uid);
+    }
+    triggerAutoSave();
+    toast("✕ Contenido eliminado");
+  },260);
 }
 
 let mgScores={};
@@ -3322,11 +3427,10 @@ function delEl(id){
 /* ══ VISTA PREVIA NAVEGABLE ══ */
 let previewMods=[], previewIdx=0;
 function openPreview(section){
-  // Build the preview HTML content
+  const snap=buildSessionSnapshot();
   const previewData={
     section,
     modData:JSON.parse(JSON.stringify(modData)),
-    sidebarState:buildSavePayload().sidebarState,
     courseName:document.getElementById("course-name")?.textContent||"",
     design:document.body.dataset.design||"default",
     theme:document.body.className||"theme-1",
@@ -3336,15 +3440,8 @@ function openPreview(section){
   document.querySelectorAll(".mod-item").forEach(m=>{
     previewData.progreso[m.id]=m.querySelector(".mod-dot")?.classList.contains("done")?"done":"pending";
   });
-
-  // Store in sessionStorage for the new window to read
-  try{sessionStorage.setItem("eva_preview",JSON.stringify(previewData));}catch(e){}
-
-  // Open new window — full screen
   const pw=window.open("","eva_preview","width="+screen.width+",height="+screen.height+",top=0,left=0");
-  if(!pw){toast("⚠️ El navegador bloqueó la ventana. Permite popups para esta página.");return;}
-
-  // Write the preview page
+  if(!pw){toast("⚠️ Permite popups para esta página.");return;}
   pw.document.write(buildPreviewHTML(previewData));
   pw.document.close();
   toast("👁 Vista previa abierta en nueva ventana");
