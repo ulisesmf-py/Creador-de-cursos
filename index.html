@@ -223,7 +223,7 @@ nav{background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:2px solid 
 .mg-score{font-size:.78rem;color:var(--text-soft);text-align:right;margin-top:6px;}
 
 /* PDF */
-.pdf-viewer{width:100%;height:720px;border:none;border-radius:12px;display:block;margin-bottom:10px;}
+.pdf-viewer{width:100%;height:1050px;border:none;border-radius:12px;display:block;margin-bottom:10px;}
 
 /* Panel bottom */
 .panel-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:14px;border-top:2px solid rgba(212,184,255,.2);flex-wrap:wrap;gap:8px;}
@@ -1892,9 +1892,44 @@ function loadTeacherDashboard(){
               });
             }
           });
+          // Load course ratings for this session
+          loadSessionRatings(sid, card);
         });
       });
     });
+  });
+}
+
+function loadSessionRatings(sid, card){
+  db.ref("pedagogia/ratings/"+sid).once("value").then(snap=>{
+    const ratings=snap.val();
+    if(!ratings) return;
+    const entries=Object.values(ratings);
+    if(!entries.length) return;
+    const avg=(entries.reduce((a,r)=>a+(r.stars||0),0)/entries.length).toFixed(1);
+    const ratingSection=document.createElement("div");
+    ratingSection.style.cssText="padding:14px 22px;border-top:1.5px solid rgba(212,184,255,.2);background:rgba(255,248,252,.6)";
+    const stars="⭐".repeat(Math.round(parseFloat(avg)))+"☆".repeat(5-Math.round(parseFloat(avg)));
+    ratingSection.innerHTML=`
+      <p style="font-size:.8rem;font-weight:700;color:var(--text-mid);margin-bottom:10px">⭐ Calificaciones del curso (${entries.length} respuesta${entries.length!==1?"s":""})</p>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div style="font-size:2rem;font-weight:800;color:#4A3F5C">${avg}</div>
+        <div>
+          <div style="font-size:1.1rem">${stars}</div>
+          <div style="font-size:.72rem;color:#A99EBD">promedio de ${entries.length} calificación${entries.length!==1?"es":""}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${entries.map(r=>`
+          <div style="background:white;border-radius:10px;padding:10px 14px;border:1.5px solid rgba(212,184,255,.2)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:.8rem;font-weight:700;color:#4A3F5C">${r.by||"Alumna"}</span>
+              <span style="font-size:.78rem;color:#F0A500">${"⭐".repeat(r.stars||0)}</span>
+            </div>
+            ${r.comment?`<p style="font-size:.78rem;color:#7A6E8A;margin:0">"${r.comment}"</p>`:""}
+          </div>`).join("")}
+      </div>`;
+    card.appendChild(ratingSection);
   });
 }
 
@@ -2476,7 +2511,46 @@ function buildVideoPlayer(raw,containerId){
 function playSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)();[523.25,659.25,783.99,1046.5].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=f;o.type="sine";const t=a.currentTime+i*.18;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.2,t+.04);g.gain.exponentialRampToValueAtTime(.001,t+.45);o.start(t);o.stop(t+.5);});}catch(e){}}
 
 /* ══ ARRANQUE ══ */
-window.addEventListener("load",()=>initLobby());
+window.addEventListener("load",()=>{
+  // Check if opened as public course URL: ?curso=sessionId
+  const urlParams=new URLSearchParams(window.location.search);
+  const cursoId=urlParams.get("curso");
+  if(cursoId){
+    loadPublicCourse(cursoId);
+    return;
+  }
+  initLobby();
+});
+
+/* ══ CURSO PÚBLICO — sin login ══ */
+function loadPublicCourse(sessionId){
+  document.getElementById("screen-login").style.display="none";
+  document.body.style.background="var(--cream)";
+  // Load session from Firebase
+  db.ref("pedagogia/s/"+sessionId).once("value").then(snap=>{
+    const data=snap.val();
+    if(!data||!data.published){
+      document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;background:#FFFBF0;flex-direction:column;gap:16px">
+        <div style="font-size:3rem">🔒</div>
+        <h2 style="color:#4A3F5C;font-family:'Pacifico',cursive">Curso no disponible</h2>
+        <p style="color:#7A6E8A">Este curso no ha sido publicado todavía.</p>
+        <a href="${window.location.pathname}" style="padding:10px 22px;border-radius:12px;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white;text-decoration:none;font-weight:700">← Volver</a>
+      </div>`;
+      return;
+    }
+    // Enter as public student — no login
+    currentSession={id:sessionId,...data};
+    currentMember={name:"Invitado",uid:"public_"+Date.now(),joinedAt:Date.now()};
+    isTeacher=false;
+    window._isPublicCourse=true;
+    enterApp();
+    toast("📖 Modo curso público — sin guardar progreso");
+  }).catch(()=>{
+    document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif">
+      <p style="color:#E05A5A">Error al cargar el curso. Intenta de nuevo.</p>
+    </div>`;
+  });
+}
 
 /* ══ URL EXTRACTOR ══
    YouTube: thumbnail clickable (no embed por política de YouTube)
@@ -2719,12 +2793,26 @@ function getCompLabel(t){
 /* ══ PUBLICAR CURSO ══ */
 function publishCourse(){
   if(!currentSession) return;
-  if(!confirm("¿Publicar el curso? Los alumnos verán la versión actual al abrir Vista previa.")) return;
+  if(!confirm("¿Publicar el curso? Los alumnos podrán acceder con un link directo sin necesidad de login.")) return;
   saveSession(false).then(()=>{
     db.ref("pedagogia/s/"+currentSession.id+"/published").set(true).then(()=>{
-      toast("🚀 ¡Curso publicado! Los alumnos ya pueden verlo.");
+      const publicUrl=window.location.origin+window.location.pathname+"?curso="+currentSession.id;
       const btn=document.getElementById("publish-btn");
       if(btn){btn.textContent="✅ Publicado";btn.style.background="linear-gradient(135deg,#4DD9AC,#2A9D6A)";}
+      // Show URL modal
+      const d=document.createElement("div");
+      d.style.cssText="position:fixed;inset:0;background:rgba(74,63,92,.5);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)";
+      d.innerHTML=`<div style="background:white;border-radius:20px;padding:28px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(74,63,92,.25);text-align:center">
+        <div style="font-size:2rem;margin-bottom:8px">🚀</div>
+        <h3 style="font-family:'Pacifico',cursive;font-size:1.1rem;color:#4A3F5C;margin-bottom:6px">¡Curso publicado!</h3>
+        <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:16px">Comparte este enlace — cualquier persona puede acceder sin login:</p>
+        <div style="background:#F8F4FF;border-radius:11px;padding:10px 14px;margin-bottom:14px;word-break:break-all;font-size:.78rem;color:#4A3F5C;border:1.5px solid #EDD8F0">${publicUrl}</div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button onclick="navigator.clipboard.writeText('${publicUrl}').then(()=>toast('✅ Copiado'))" style="padding:9px 18px;border-radius:11px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer">📋 Copiar link</button>
+          <button onclick="this.closest('[style*=fixed]').remove()" style="padding:9px 18px;border-radius:11px;border:1.5px solid #EDD8F0;background:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer;color:#7A6E8A">Cerrar</button>
+        </div>
+      </div>`;
+      document.body.appendChild(d);
     });
   });
 }
@@ -2884,7 +2972,7 @@ function loadModPDF(id){
   if(errBox) errBox.style.display="none";
   if(cont){
     cont.style.display="block";
-    cont.innerHTML=`<iframe src="${embedUrl}" class="pdf-viewer" style="height:720px"
+    cont.innerHTML=`<iframe src="${embedUrl}" class="pdf-viewer" style="height:1050px"
       onload="handlePDFLoad(this,'${id}')"
       onerror="showDriveError('${id}')"></iframe>`;
   }
@@ -3026,7 +3114,7 @@ function renderSubBlock(sb,modId,si){
   } else if(sb.type==="lectura"){
     const pdfEmbed=sb.url?toDriveEmbed(sb.url):"";
     inner=`<div class="sub-block-title">📄 ${sb.title}</div>
-      <div id="sp-${uid}">${pdfEmbed?`<iframe src="${pdfEmbed}" style="width:100%;height:720px;border:none;border-radius:10px;display:block"></iframe>`:""}</div>
+      <div id="sp-${uid}">${pdfEmbed?`<iframe src="${pdfEmbed}" style="width:100%;height:1050px;border:none;border-radius:10px;display:block"></iframe>`:""}</div>
       <div class="url-helper">💡 Google Drive → Compartir → Cualquier persona con el enlace → copiar link</div>
       <input class="url-input" value="${sb.url||""}" placeholder="🔗 URL del PDF (Google Drive)" id="spu-${uid}">
       <button class="load-btn" onclick="loadSubPDF('${uid}','spu-${uid}')">Cargar 📄</button>`;
@@ -3194,7 +3282,7 @@ function loadSubPDF(uid,inputId){
   const raw=inp.value.trim();
   const embedUrl=toDriveEmbed(raw);
   const cont=document.getElementById("sp-"+uid);
-  if(cont) cont.innerHTML=`<iframe src="${embedUrl}" style="width:100%;height:580px;border:none;border-radius:10px;display:block"></iframe>`;
+  if(cont) cont.innerHTML=`<iframe src="${embedUrl}" style="width:100%;height:1050px;border:none;border-radius:10px;display:block"></iframe>`;
   if(currentModId&&modData[currentModId]?.subBlocks){const sb=modData[currentModId].subBlocks.find(s=>s.uid===uid);if(sb)sb.url=raw;}
   triggerAutoSave();toast("📄 PDF cargado");
 }
@@ -3270,7 +3358,7 @@ function confirmSubBlock(){
     if(url&&addModType==="video") setTimeout(()=>buildVideoPlayer(url,"sv-"+uid),80);
     if(url&&addModType==="lectura") setTimeout(()=>{
       const cont=document.getElementById("sp-"+uid);
-      if(cont) cont.innerHTML=`<iframe src="${toDriveEmbed(url)}" style="width:100%;height:580px;border:none;border-radius:10px;display:block"></iframe>`;
+      if(cont) cont.innerHTML=`<iframe src="${toDriveEmbed(url)}" style="width:100%;height:1050px;border:none;border-radius:10px;display:block"></iframe>`;
     },80);
   }
   cM("modal-mod");
@@ -3435,6 +3523,8 @@ function openPreview(section){
     design:document.body.dataset.design||"default",
     theme:document.body.className||"theme-1",
     previewMods:Array.from(document.querySelectorAll(".mod-item")).map(m=>m.id),
+    units:snap.units||[],
+    allMods:snap.allMods||[],
     progreso:{},
   };
   document.querySelectorAll(".mod-item").forEach(m=>{
@@ -3444,67 +3534,72 @@ function openPreview(section){
   if(!pw){toast("⚠️ Permite popups para esta página.");return;}
   pw.document.write(buildPreviewHTML(previewData));
   pw.document.close();
-  toast("👁 Vista previa abierta en nueva ventana");
+  toast("👁 Vista previa abierta");
 }
 
 function buildPreviewHTML(data){
-  // Get current CSS from parent page
-  const styles=Array.from(document.styleSheets).map(s=>{try{return Array.from(s.cssRules).map(r=>r.cssText).join("\n");}catch(e){return "";}}).join("\n");
   const md=data.modData||{};
   const mods=data.previewMods||[];
   const prog=data.progreso||{};
-  const courseName=data.courseName||"Pedagogía Digital";
+  const courseName=data.courseName||"Curso";
+  const units=data.units||[];
+  const allMods=data.allMods||[];
 
-  // Build sidebar HTML
+  // Sidebar
   let sidebarHTML="";
-  if(data.sidebarState?.units){
-    data.sidebarState.units.forEach(u=>{
-      sidebarHTML+=`<div style="font-size:.63rem;font-weight:800;color:#A99EBD;text-transform:uppercase;letter-spacing:.7px;padding:5px 7px 2px">${u.name}</div>`;
-      (data.sidebarState.allMods||[]).filter(m=>m.unitId===u.id).forEach(m=>{
-        const isDone=prog[m.id]==="done";
-        const isCur=mods[0]===m.id;
-        sidebarHTML+=`<div style="display:flex;align-items:center;gap:5px;padding:7px 9px;border-radius:10px;margin-bottom:3px;background:${isCur?"linear-gradient(135deg,var(--accent),var(--accent2))":"white"};border:1.5px solid ${isDone?"rgba(77,217,172,.25)":"rgba(212,184,255,.2)"};cursor:pointer" onclick="showPreviewMod('${m.id}')">
-          <div style="width:16px;height:16px;border-radius:50%;background:${isDone?"linear-gradient(135deg,#B8F0D8,#4DD9AC)":"rgba(212,184,255,.2)"};display:flex;align-items:center;justify-content:center;font-size:.58rem;color:${isDone?"white":"#A99EBD"};flex-shrink:0">${isDone?"✓":"○"}</div>
-          <span style="font-size:.75rem;font-weight:600;color:${isCur?"white":"#4A3F5C"}">${m.label}</span>
-        </div>`;
-      });
+  units.forEach(u=>{
+    sidebarHTML+=`<div style="font-size:.62rem;font-weight:800;color:#A99EBD;text-transform:uppercase;letter-spacing:.7px;padding:6px 8px 3px">${u.name}</div>`;
+    allMods.filter(m=>m.unitId===u.id).forEach(m=>{
+      const isDone=prog[m.id]==="done";
+      sidebarHTML+=`<div onclick="showPreviewMod('${m.id}')" id="smenu-${m.id}"
+        style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;margin-bottom:3px;cursor:pointer;border:1.5px solid rgba(212,184,255,.2);background:white;transition:all .2s">
+        <div style="width:16px;height:16px;border-radius:50%;background:${isDone?"linear-gradient(135deg,#B8F0D8,#4DD9AC)":"#F0E8F8"};display:flex;align-items:center;justify-content:center;font-size:.58rem;color:${isDone?"white":"#A99EBD"};flex-shrink:0">${isDone?"✓":"○"}</div>
+        <span style="font-size:.76rem;font-weight:600;color:#4A3F5C">${m.label}</span>
+      </div>`;
     });
-  }
-
-  // Build main content for first module
-  const firstModId=mods[0]||Object.keys(md)[0]||"";
-  const firstMod=md[firstModId]||{};
+  });
+  // Also add mods not in any unit
+  mods.filter(mid=>!allMods.find(m=>m.id===mid)).forEach(mid=>{
+    const d=md[mid]||{};
+    sidebarHTML+=`<div onclick="showPreviewMod('${mid}')" id="smenu-${mid}"
+      style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;margin-bottom:3px;cursor:pointer;border:1.5px solid rgba(212,184,255,.2);background:white">
+      <div style="width:16px;height:16px;border-radius:50%;background:#F0E8F8;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:#A99EBD">○</div>
+      <span style="font-size:.76rem;font-weight:600;color:#4A3F5C">${d.title||mid}</span>
+    </div>`;
+  });
 
   return `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>👁 Vista previa — ${courseName}</title>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Pacifico&family=Dancing+Script:wght@700&family=Permanent+Marker&family=Bebas+Neue&display=swap" rel="stylesheet">
+<title>Vista previa — ${courseName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
 <style>
-:root{--cream:#FFFBF0;--accent:#FF8FA3;--accent2:#C77DFF;--btn-bg:linear-gradient(135deg,#FFBCCA,#D4B8FF);--card-bg:rgba(255,255,255,.9);--radius:20px;--text-dark:#4A3F5C;--text-mid:#7A6E8A;--shadow:rgba(200,160,200,.18);}
-${styles}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Nunito',sans-serif;background:var(--cream);color:var(--text-dark);min-height:100vh;}
-.preview-topbar{background:var(--nav-bg,rgba(255,240,243,.96));backdrop-filter:blur(20px);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid rgba(255,188,202,.3);box-shadow:0 4px 16px var(--shadow);position:sticky;top:0;z-index:100;}
-.preview-layout{display:grid;grid-template-columns:260px 1fr;gap:0;max-width:1280px;margin:0 auto;padding:24px;min-height:calc(100vh - 62px);}
-.preview-side{background:var(--card-bg);border-radius:var(--radius);padding:18px 14px;height:fit-content;box-shadow:0 8px 32px var(--shadow);}
-.preview-main{background:var(--card-bg);border-radius:var(--radius);padding:28px 32px;box-shadow:0 8px 32px var(--shadow);margin-left:16px;}
+body{font-family:'Nunito',sans-serif;background:#FFFBF0;color:#4A3F5C;min-height:100vh;}
+.topbar{background:rgba(255,240,243,.97);backdrop-filter:blur(16px);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid rgba(255,188,202,.3);position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(200,160,200,.18);}
+.layout{display:grid;grid-template-columns:260px 1fr;gap:16px;max-width:1280px;margin:0 auto;padding:20px;min-height:calc(100vh - 60px);}
+.sidebar{background:white;border-radius:16px;padding:16px 12px;height:fit-content;box-shadow:0 4px 20px rgba(200,160,200,.15);position:sticky;top:76px;}
+.main{background:white;border-radius:16px;padding:28px 32px;box-shadow:0 4px 20px rgba(200,160,200,.15);}
+.btn{padding:6px 14px;border-radius:9px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:700;}
+.tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700;margin-bottom:10px;}
+iframe{border:none;border-radius:10px;display:block;width:100%;}
+ul{padding-left:20px;} ul li{margin-bottom:5px;font-size:.9rem;line-height:1.7;}
 </style></head>
-<body class="${data.theme||""} ${data.design&&data.design!=="default"?"design-"+data.design:""}">
-<div class="preview-topbar">
-  <div style="font-family:'Pacifico',cursive;font-size:1.1rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">👁 Vista previa — ${courseName}</div>
-  <div style="display:flex;gap:8px">
-    <button id="prev-btn" onclick="navigatePreviewWindow(-1)" style="padding:5px 12px;border-radius:9px;border:2px solid rgba(255,143,163,.3);background:white;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:700;color:#7A6E8A;cursor:pointer">← Anterior</button>
-    <span id="mod-counter" style="font-size:.8rem;color:#A99EBD;line-height:2.2">1 / ${mods.length}</span>
-    <button id="next-btn" onclick="navigatePreviewWindow(1)" style="padding:5px 12px;border-radius:9px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">Siguiente →</button>
-    <button onclick="window.close()" style="padding:5px 12px;border-radius:9px;border:none;background:rgba(255,100,120,.15);color:#E05A5A;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">✕ Cerrar</button>
+<body>
+<div class="topbar">
+  <div style="font-family:'Pacifico',cursive;font-size:1rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">👁 Vista previa — ${courseName}</div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <button class="btn" onclick="nav(-1)" style="background:white;border:1.5px solid #EDD8F0;color:#7A6E8A">← Anterior</button>
+    <span id="ctr" style="font-size:.78rem;color:#A99EBD">1/${mods.length}</span>
+    <button class="btn" onclick="nav(1)" style="background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white">Siguiente →</button>
+    <button class="btn" onclick="window.close()" style="background:rgba(255,100,120,.1);color:#E05A5A">✕</button>
   </div>
 </div>
-<div class="preview-layout">
-  <div class="preview-side" id="preview-sidebar-content">
-    <div style="font-family:'Pacifico',cursive;font-size:.95rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px">${courseName}</div>
+<div class="layout">
+  <div class="sidebar">
+    <div style="font-family:'Pacifico',cursive;font-size:.9rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px">${courseName}</div>
     ${sidebarHTML}
   </div>
-  <div class="preview-main" id="preview-main-content"></div>
+  <div class="main" id="main-content">Cargando...</div>
 </div>
 <scr"+"ipt>
 const __md=${JSON.stringify(md)};
@@ -3512,68 +3607,63 @@ const __mods=${JSON.stringify(mods)};
 const __prog=${JSON.stringify(prog)};
 let __idx=0;
 const TYPE_ICONS={intro:"📋",video:"🎬",lectura:"📄",foro:"💬",actividad:"🎮",quiz:"🧩",texto:"📝"};
-function getYTId(url){const m=(url||"").match(/(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/|youtube\\.com\\/shorts\\/)([A-Za-z0-9_\\-]{11})/);return m?m[1]:null;}
-function isYT(url){return !!(getYTId(url)||(url||"").includes("youtube.com/embed/"));}
-function toDriveEmbed(url){const m=(url||"").match(/drive\\.google\\.com\\/file\\/d\\/([a-zA-Z0-9_\\-]+)/);return m?"https://docs.google.com/viewer?url=https://drive.google.com/uc?id="+m[1]+"&embedded=true":url;}
-
-function renderPreviewContent(modId){
+const TYPE_COLORS={intro:"#D4734A",video:"#3A7BC8",lectura:"#2A9D6A",foro:"#B08A00",actividad:"#8A4AC8",quiz:"#D4455A"};
+const TYPE_BG={intro:"rgba(212,115,74,.12)",video:"rgba(58,123,200,.12)",lectura:"rgba(42,157,106,.12)",foro:"rgba(176,138,0,.12)",actividad:"rgba(138,74,200,.12)",quiz:"rgba(212,68,90,.12)"};
+function getYTId(url){const m=(url||"").match(/(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([A-Za-z0-9_\\-]{11})/);return m?m[1]:null;}
+function toDriveEmbed(url){const m=(url||"").match(/drive\\.google\\.com\\/file\\/d\\/([a-zA-Z0-9_\\-]+)/);return m?"https://drive.google.com/file/d/"+m[1]+"/preview":url;}
+function renderMod(modId){
   const d=__md[modId];
-  if(!d){document.getElementById("preview-main-content").innerHTML="<p style='color:#A99EBD;text-align:center;padding:40px'>Sin contenido</p>";return;}
-  const tBg={intro:"rgba(255,212,184,.3)",video:"rgba(184,220,255,.3)",lectura:"rgba(184,240,216,.3)",foro:"rgba(255,240,176,.3)",actividad:"rgba(212,184,255,.3)",quiz:"rgba(255,188,202,.3)"};
-  const tCol={intro:"#D4734A",video:"#3A7BC8",lectura:"#2A9D6A",foro:"#B08A00",actividad:"#8A4AC8",quiz:"#D4455A"};
-  let body='<span style="padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700;background:'+(tBg[d.type]||"rgba(212,184,255,.2)")+';color:'+(tCol[d.type]||"#7A6E8A")+'">'+d.type+'</span>';
-  body+='<h2 style="font-size:1.2rem;font-weight:800;color:#4A3F5C;margin:10px 0 10px">'+d.title+'</h2>';
-  body+='<p style="font-size:.88rem;color:#7A6E8A;line-height:1.7;margin-bottom:16px">'+d.desc+'</p>';
-  if(d.type==="video"){
-    if(d.url&&isYT(d.url)){const ytId=getYTId(d.url);const thumb=ytId?"https://img.youtube.com/vi/"+ytId+"/hqdefault.jpg":"";const ytUrl=ytId?"https://www.youtube.com/watch?v="+ytId:d.url;body+='<div style="position:relative;cursor:pointer;border-radius:12px;overflow:hidden" onclick="window.open(\''+ytUrl+'\',\'_blank\')"><img src="'+thumb+'" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center"><div style="width:64px;height:64px;background:#FF0000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:white">▶</div></div></div>';}
-    else if(d.url){body+='<div style="position:relative;width:100%;padding-top:56.25%;border-radius:12px;overflow:hidden"><iframe src="'+d.url+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>';}
-  } else if(d.type==="lectura"){
-    body+=d.url?'<iframe src="'+toDriveEmbed(d.url)+'" style="width:100%;height:520px;border:none;border-radius:12px;display:block"></iframe>':'<div style="background:rgba(212,184,255,.2);border-radius:12px;padding:28px;text-align:center;color:#A99EBD">📄 PDF no cargado</div>';
-    body+='<div style="margin-top:12px"><p style="font-size:.78rem;font-weight:700;color:#7A6E8A;margin-bottom:6px">📝 Mis apuntes:</p><textarea style="width:100%;min-height:80px;border-radius:10px;border:2px solid rgba(212,184,255,.2);padding:8px 11px;font-family:Nunito,sans-serif;font-size:.84rem;resize:vertical;outline:none;background:#FFFBF0;color:#4A3F5C" placeholder="Escribe aquí..."></textarea></div>';
-  } else if(d.type==="actividad"){
-    body+=d.url?'<iframe src="'+d.url+'" style="width:100%;height:480px;border:none;border-radius:12px;display:block"></iframe>':'<div style="background:rgba(212,184,255,.2);border-radius:12px;padding:28px;text-align:center;color:#A99EBD">🎮 Actividad no cargada</div>';
-  } else if(d.type==="foro"){
-    body+='<div style="background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px"><p style="font-size:.84rem;color:#7A6E8A">💬 Foro de participación — escribe tu respuesta:</p></div>';
-    body+='<div style="display:flex;gap:8px"><textarea id="foro-preview-inp" style="flex:1;padding:8px 12px;border-radius:10px;border:2px solid #EDD8F0;font-family:Nunito,sans-serif;font-size:.84rem;background:#FFFBF0;color:#4A3F5C;resize:none;min-height:44px;outline:none" placeholder="Escribe tu participación..."></textarea><button onclick="addForoPost()" style="padding:8px 14px;border-radius:10px;border:none;background:var(--btn-bg);color:white;font-family:Nunito,sans-serif;font-weight:700;cursor:pointer">Enviar</button></div><div id="foro-preview-posts" style="margin-top:10px"></div>';
-  } else if(d.type==="quiz"&&d.quiz?.preguntas){
-    body+=d.quiz.preguntas.map((p,qi)=>'<div style="background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px"><p style="font-weight:800;font-size:.9rem;color:#4A3F5C;margin-bottom:10px">❓ '+p.q+'</p>'+p.opts.map((o,oi)=>'<button id="pqo'+qi+'-'+oi+'" onclick="checkPQ('+qi+','+oi+','+p.correcta+')" style="display:block;width:100%;padding:9px 12px;border:2px solid rgba(212,184,255,.2);border-radius:9px;margin-bottom:6px;cursor:pointer;background:white;font-family:Nunito,sans-serif;font-size:.85rem;text-align:left">'+o+'</button><div id="pqfb'+qi+'" style="display:none;padding:7px;border-radius:8px;font-size:.83rem;font-weight:600;margin-top:4px"></div>').join("")+'</div>').join("");
+  if(!d){document.getElementById("main-content").innerHTML="<p style='color:#A99EBD;text-align:center;padding:40px'>Sin contenido</p>";return;}
+  let html=\`<span class="tag" style="background:\${TYPE_BG[d.type]};color:\${TYPE_COLORS[d.type]}">\${d.type}</span>
+    <h2 style="font-size:1.2rem;font-weight:800;color:#4A3F5C;margin-bottom:8px">\${d.title||""}</h2>
+    <p style="font-size:.88rem;color:#7A6E8A;line-height:1.7;margin-bottom:14px">\${d.desc||""}</p>\`;
+  if(d.objectives&&d.objectives.length){html+=\`<ul>\${d.objectives.map(o=>\`<li>\${o}</li>\`).join("")}</ul>\`;}
+  if(d.type==="video"&&d.url){
+    const ytId=getYTId(d.url);
+    if(ytId) html+=\`<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:12px 0"><iframe src="https://www.youtube.com/embed/\${ytId}" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>\`;
+    else html+=\`<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:12px 0"><iframe src="\${d.url}" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>\`;
   }
+  if(d.type==="lectura"&&d.url) html+=\`<iframe src="\${toDriveEmbed(d.url)}" style="height:900px;margin:12px 0"></iframe>\`;
+  if(d.type==="actividad"&&d.url) html+=\`<iframe src="\${d.url}" style="height:520px;margin:12px 0"></iframe>\`;
+  if(d.type==="foro") html+=\`<div style="background:#F8F4FF;border-radius:12px;padding:14px;margin:12px 0"><p style="font-size:.84rem;color:#7A6E8A">💬 Foro — escribe tu participación</p></div><textarea id="foro-inp" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid #EDD8F0;font-family:Nunito,sans-serif;font-size:.85rem;min-height:80px;resize:none;outline:none" placeholder="Tu respuesta..."></textarea>\`;
+  if(d.type==="quiz"&&d.quiz?.preguntas){
+    html+=d.quiz.preguntas.map((p,qi)=>\`<div style="background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px"><p style="font-weight:800;margin-bottom:10px">❓ \${p.q}</p>\${p.opts.map((o,oi)=>\`<button onclick="chk(\${qi},\${oi},\${p.correcta})" id="qo-\${qi}-\${oi}" style="display:block;width:100%;padding:9px 12px;border:1.5px solid #EDD8F0;border-radius:9px;margin-bottom:6px;cursor:pointer;background:white;font-family:Nunito,sans-serif;font-size:.85rem;text-align:left">\${o}</button><div id="qfb-\${qi}" style="display:none;padding:6px;border-radius:8px;font-size:.83rem;font-weight:600;margin-top:3px"></div>\`).join("")}</div>\`).join("");}
   // Sub-blocks
   if(d.subBlocks&&d.subBlocks.length){
-    body+='<div style="margin-top:12px">';
     d.subBlocks.forEach(sb=>{
-      body+='<div style="background:rgba(255,248,252,.8);border:1.5px solid rgba(212,184,255,.2);border-radius:12px;padding:14px;margin-bottom:10px">';
-      body+='<p style="font-size:.84rem;font-weight:800;color:#4A3F5C;margin-bottom:8px">'+(TYPE_ICONS[sb.type]||"📋")+' '+sb.title+'</p>';
-      if(sb.url&&sb.type==="video"&&isYT(sb.url)){const ytId=getYTId(sb.url);body+='<div style="position:relative;cursor:pointer;border-radius:10px;overflow:hidden" onclick="window.open(\'https://www.youtube.com/watch?v='+ytId+'\',\'_blank\')"><img src="https://img.youtube.com/vi/'+ytId+'/hqdefault.jpg" style="width:100%;aspect-ratio:16/9;object-fit:cover"><div style="position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center"><div style="width:50px;height:50px;background:#FF0000;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:1.3rem">▶</div></div></div>';}
-      else if(sb.url&&(sb.type==="lectura"||sb.type==="actividad")){body+='<iframe src="'+toDriveEmbed(sb.url)+'" style="width:100%;height:420px;border:none;border-radius:10px;display:block"></iframe>';}
-      else if(sb.type==="texto"&&sb.desc){body+='<div style="padding:10px;border-radius:8px;background:white;font-size:.88rem;color:#4A3F5C;line-height:1.8">'+sb.desc+'</div>';}
-      body+='</div>';
+      html+=\`<div style="background:#F8F4FF;border-radius:12px;padding:14px;margin-bottom:10px"><p style="font-size:.84rem;font-weight:800;margin-bottom:8px">\${TYPE_ICONS[sb.type]||"📋"} \${sb.title}</p>\`;
+      if(sb.type==="video"&&sb.url){const ytId=getYTId(sb.url);html+=ytId?\`<div style="position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden"><iframe src="https://www.youtube.com/embed/\${ytId}" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>\`:\`<iframe src="\${sb.url}" style="height:280px"></iframe>\`;}
+      else if(sb.type==="lectura"&&sb.url) html+=\`<iframe src="\${toDriveEmbed(sb.url)}" style="height:1050px"></iframe>\`;
+      else if(sb.type==="actividad"&&sb.url) html+=\`<iframe src="\${sb.url}" style="height:480px"></iframe>\`;
+      else if(sb.isRichText&&sb.desc) html+=\`<div style="font-size:.88rem;line-height:1.8;color:#4A3F5C">\${sb.desc}</div>\`;
+      html+=\`</div>\`;
     });
-    body+='</div>';
   }
-  body+='<div style="margin-top:20px;padding-top:14px;border-top:2px solid rgba(212,184,255,.2);display:flex;justify-content:space-between;align-items:center"><div style="background:rgba(77,217,172,.1);border:1px solid rgba(77,217,172,.3);border-radius:8px;padding:5px 12px;font-size:.76rem;color:#2A9D6A">🎯 '+({'ninguno':'Automático','ver_video':'Ver video','foro':'Participar en foro','quiz':'Responder quiz','actividad':'Completar actividad','apuntes':'Escribir apuntes'}[d.compTrigger]||d.compTrigger)+'</div>'+((__idx<__mods.length-1)?'<button onclick="navigatePreviewWindow(1)" style="padding:7px 16px;border-radius:10px;border:none;background:var(--btn-bg);color:white;font-family:Nunito,sans-serif;font-weight:700;font-size:.82rem;cursor:pointer">Siguiente →</button>':'<span style="font-size:.8rem;color:#A99EBD">🎉 Fin del curso</span>')+'</div>';
-  document.getElementById("preview-main-content").innerHTML=body;
-  document.getElementById("mod-counter").textContent=(__idx+1)+" / "+__mods.length;
-}
-function navigatePreviewWindow(dir){
-  __idx=Math.max(0,Math.min(__mods.length-1,__idx+dir));
-  renderPreviewContent(__mods[__idx]);
-  // Update sidebar active state
-  document.querySelectorAll("[onclick*='showPreviewMod']").forEach(el=>{
-    el.style.background=el.getAttribute("onclick").includes(__mods[__idx])?"linear-gradient(135deg,var(--accent),var(--accent2))":"white";
+  // Navigation
+  const isLast=__idx===__mods.length-1;
+  html+=\`<div style="margin-top:20px;padding-top:14px;border-top:1.5px solid #F0E8F8;display:flex;justify-content:\${isLast?"center":"flex-end"}">\${isLast?\`<span style="font-size:.9rem;color:#A99EBD">🎉 Fin del curso — Vista previa</span>\`:\`<button onclick="nav(1)" style="padding:8px 20px;border-radius:11px;border:none;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white;font-family:Nunito,sans-serif;font-weight:700;font-size:.84rem;cursor:pointer">Siguiente →</button>\`}</div>\`;
+  document.getElementById("main-content").innerHTML=html;
+  document.getElementById("ctr").textContent=(__idx+1)+"/"+__mods.length;
+  // Highlight active sidebar item
+  document.querySelectorAll("[id^='smenu-']").forEach(el=>{
+    el.style.background=el.id==="smenu-"+modId?"linear-gradient(135deg,#FFBCCA,#D4B8FF)":"white";
+    el.style.color=el.id==="smenu-"+modId?"white":"#4A3F5C";
+    el.querySelectorAll("span").forEach(s=>s.style.color=el.id==="smenu-"+modId?"white":"#4A3F5C");
   });
 }
-function showPreviewMod(id){__idx=__mods.indexOf(id);if(__idx<0)__idx=0;renderPreviewContent(__mods[__idx]);}
-function checkPQ(qi,oi,correcta){
-  const cb=document.getElementById("pqo"+qi+"-"+correcta);if(cb){cb.style.borderColor="#4DD9AC";cb.style.background="rgba(77,217,172,.1)";cb.style.color="#2A9D6A";}
-  if(oi!==correcta){const wb=document.getElementById("pqo"+qi+"-"+oi);if(wb){wb.style.borderColor="#F87";wb.style.background="rgba(255,136,119,.1)";wb.style.color="#D4455A";}}
-  const fb=document.getElementById("pqfb"+qi);if(fb){fb.style.display="block";fb.style.background=oi===correcta?"rgba(77,217,172,.15)":"rgba(255,136,119,.15)";fb.style.color=oi===correcta?"#2A9D6A":"#D4455A";fb.textContent=oi===correcta?"✅ ¡Correcto!":"❌ Incorrecto.";}
+function nav(dir){__idx=Math.max(0,Math.min(__mods.length-1,__idx+dir));renderMod(__mods[__idx]);}
+function showPreviewMod(id){__idx=__mods.indexOf(id);if(__idx<0)__idx=0;renderMod(__mods[__idx]);}
+function chk(qi,oi,correcta){
+  const fb=document.getElementById("qfb-"+qi);
+  const cb=document.getElementById("qo-"+qi+"-"+correcta);
+  const wb=document.getElementById("qo-"+qi+"-"+oi);
+  if(cb){cb.style.border="1.5px solid #4DD9AC";cb.style.background="rgba(77,217,172,.1)";}
+  if(oi!==correcta&&wb){wb.style.border="1.5px solid #F87";wb.style.background="rgba(255,136,119,.1)";}
+  if(fb){fb.style.display="block";fb.style.background=oi===correcta?"rgba(77,217,172,.15)":"rgba(255,136,119,.15)";fb.style.color=oi===correcta?"#2A9D6A":"#D45B6A";fb.textContent=oi===correcta?"✅ ¡Correcto!":"❌ Incorrecto";}
 }
-function addForoPost(){const inp=document.getElementById("foro-preview-inp");if(!inp||!inp.value.trim())return;const posts=document.getElementById("foro-preview-posts");if(posts){const d=document.createElement("div");d.style.cssText="background:white;border-radius:10px;padding:10px 13px;margin-bottom:7px;border:1.5px solid rgba(212,184,255,.2);";d.innerHTML='<p style="font-size:.84rem;color:#4A3F5C">'+inp.value+'</p>';posts.appendChild(d);}inp.value="";}
-window.onload=()=>renderPreviewContent(__mods[0]);
+window.onload=()=>renderMod(__mods[0]);
 <\/scr"+"ipt></body></html>`;
 }
-
 function closePreview(){
   const o=document.getElementById("preview-overlay");
   if(o){o.classList.remove("open");DESIGN_CLASSES.forEach(c=>o.classList.remove(c));}
