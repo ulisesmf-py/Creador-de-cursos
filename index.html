@@ -2527,9 +2527,14 @@ function loadPublicCourse(sessionId){
   document.getElementById("screen-login").style.display="none";
   document.body.style.background="var(--cream)";
   // Load session from Firebase
-  db.ref("pedagogia/s/"+sessionId).once("value").then(snap=>{
-    const data=snap.val();
-    if(!data||!data.published){
+  // Load session config + data from Firebase
+  Promise.all([
+    db.ref("pedagogia/sesiones_config/"+sessionId).once("value"),
+    db.ref("pedagogia/s/"+sessionId).once("value")
+  ]).then(([cfgSnap, dataSnap])=>{
+    const cfg=cfgSnap.val()||{};
+    const data=dataSnap.val()||{};
+    if(!data.published && !cfg.published){
       document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;background:#FFFBF0;flex-direction:column;gap:16px">
         <div style="font-size:3rem">🔒</div>
         <h2 style="color:#4A3F5C;font-family:'Pacifico',cursive">Curso no disponible</h2>
@@ -2538,13 +2543,32 @@ function loadPublicCourse(sessionId){
       </div>`;
       return;
     }
-    // Enter as public student — no login
-    currentSession={id:sessionId,...data};
+    // Merge config + data, ensure nombre exists
+    const sessionObj={id:sessionId, nombre:cfg.nombre||data.courseName||"Curso", icon:cfg.icon||"🌸", ...cfg, ...data};
+    currentSession=sessionObj;
     currentMember={name:"Invitado",uid:"public_"+Date.now(),joinedAt:Date.now()};
     isTeacher=false;
     window._isPublicCourse=true;
     enterApp();
-    toast("📖 Modo curso público — sin guardar progreso");
+    // Hide all editing UI after app loads
+    setTimeout(()=>{
+      [".add-btn",".del-btn",".load-btn",".preview-btn","#publish-btn",
+       "[onclick*='openSubModal']","[onclick*='addMod']",
+       "[onclick*='addUnit']","[onclick*='delEl']","[onclick*='delMod']"].forEach(sel=>{
+        document.querySelectorAll(sel).forEach(el=>el.style.display="none");
+      });
+      document.querySelectorAll("[contenteditable]").forEach(el=>el.removeAttribute("contenteditable"));
+      document.querySelectorAll(".nav-btn").forEach(b=>{
+        if(!b.id||b.id==="nav-uname") return;
+        b.style.display="none";
+      });
+      document.querySelector(".type-tabs")?.remove();
+      const banner=document.createElement("div");
+      banner.style.cssText="background:linear-gradient(135deg,rgba(77,217,172,.15),rgba(91,163,245,.15));border:1.5px solid rgba(77,217,172,.3);border-radius:12px;padding:10px 16px;text-align:center;font-size:.82rem;color:#2A9D6A;font-weight:700;margin-bottom:16px;max-width:900px;margin-left:auto;margin-right:auto";
+      banner.textContent="📖 Estás viendo el curso en modo público — tu progreso no se guardará";
+      document.querySelector(".section-mooc.active")?.prepend(banner)||document.querySelector(".section-mooc")?.prepend(banner);
+    },600);
+    toast("📖 Modo curso público");
   }).catch(()=>{
     document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif">
       <p style="color:#E05A5A">Error al cargar el curso. Intenta de nuevo.</p>
@@ -3520,20 +3544,23 @@ function openPreview(section){
     section,
     modData:JSON.parse(JSON.stringify(modData)),
     courseName:document.getElementById("course-name")?.textContent||"",
-    design:document.body.dataset.design||"default",
-    theme:document.body.className||"theme-1",
-    previewMods:Array.from(document.querySelectorAll(".mod-item")).map(m=>m.id),
     units:snap.units||[],
     allMods:snap.allMods||[],
+    previewMods:Array.from(document.querySelectorAll(".mod-item")).map(m=>m.id),
     progreso:{},
   };
   document.querySelectorAll(".mod-item").forEach(m=>{
     previewData.progreso[m.id]=m.querySelector(".mod-dot")?.classList.contains("done")?"done":"pending";
   });
-  const pw=window.open("","eva_preview","width="+screen.width+",height="+screen.height+",top=0,left=0");
-  if(!pw){toast("⚠️ Permite popups para esta página.");return;}
-  pw.document.write(buildPreviewHTML(previewData));
-  pw.document.close();
+  const html=buildPreviewHTML(previewData);
+  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const pw=window.open(url,"_blank");
+  if(!pw){
+    // Fallback: open in same tab
+    const a=document.createElement("a");
+    a.href=url; a.target="_blank"; a.click();
+  }
   toast("👁 Vista previa abierta");
 }
 
