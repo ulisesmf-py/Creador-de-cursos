@@ -3540,157 +3540,144 @@ function delEl(id){
 let previewMods=[], previewIdx=0;
 function openPreview(section){
   const snap=buildSessionSnapshot();
-  const previewData={
-    section,
+  const data={
     modData:JSON.parse(JSON.stringify(modData)),
-    courseName:document.getElementById("course-name")?.textContent||"",
+    courseName:document.getElementById("course-name")?.textContent||"Curso",
     units:snap.units||[],
     allMods:snap.allMods||[],
     previewMods:Array.from(document.querySelectorAll(".mod-item")).map(m=>m.id),
     progreso:{},
   };
   document.querySelectorAll(".mod-item").forEach(m=>{
-    previewData.progreso[m.id]=m.querySelector(".mod-dot")?.classList.contains("done")?"done":"pending";
+    data.progreso[m.id]=m.querySelector(".mod-dot")?.classList.contains("done")?"done":"pending";
   });
-  const html=buildPreviewHTML(previewData);
+  const html=buildPreviewHTML(data);
   const blob=new Blob([html],{type:"text/html;charset=utf-8"});
   const url=URL.createObjectURL(blob);
   const pw=window.open(url,"_blank");
-  if(!pw){
-    // Fallback: open in same tab
-    const a=document.createElement("a");
-    a.href=url; a.target="_blank"; a.click();
-  }
+  if(!pw){const a=document.createElement("a");a.href=url;a.target="_blank";a.click();}
   toast("👁 Vista previa abierta");
 }
 
 function buildPreviewHTML(data){
-  const md=data.modData||{};
-  const mods=data.previewMods||[];
-  const prog=data.progreso||{};
-  const courseName=data.courseName||"Curso";
-  const units=data.units||[];
-  const allMods=data.allMods||[];
+  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  const P="'";
+  const css=[
+    "*{box-sizing:border-box;margin:0;padding:0}",
+    "body{font-family:Nunito,sans-serif;background:#FFFBF0;color:#4A3F5C;min-height:100vh}",
+    ".topbar{background:rgba(255,255,255,.96);backdrop-filter:blur(16px);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid rgba(255,188,202,.3);position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(200,160,200,.18)}",
+    ".layout{display:grid;grid-template-columns:260px 1fr;gap:16px;max-width:1280px;margin:0 auto;padding:20px}",
+    ".sidebar{background:white;border-radius:16px;padding:16px 12px;box-shadow:0 4px 20px rgba(200,160,200,.15);position:sticky;top:74px;height:fit-content;max-height:calc(100vh - 90px);overflow-y:auto}",
+    ".main{background:white;border-radius:16px;padding:28px 32px;box-shadow:0 4px 20px rgba(200,160,200,.15)}",
+    ".mc{padding:8px 10px;border-radius:10px;border:1.5px solid rgba(212,184,255,.2);background:white;cursor:pointer;margin-bottom:4px;display:flex;align-items:center;gap:8px;transition:all .2s}",
+    ".mc:hover{border-color:#FF8FA3;background:rgba(255,143,163,.05)}",
+    ".mc.on{background:linear-gradient(135deg,#FFBCCA,#D4B8FF);border-color:transparent}",
+    ".mc.on span{color:white!important}",
+    ".nbtn{padding:7px 16px;border-radius:10px;border:none;font-family:Nunito,sans-serif;font-size:.8rem;font-weight:700;cursor:pointer}",
+    "iframe{border:none;border-radius:10px;display:block;width:100%}",
+    "ul{padding-left:20px}ul li{margin-bottom:5px;font-size:.9rem;line-height:1.7}",
+    ".qo{display:block;width:100%;padding:9px 12px;border:1.5px solid #EDD8F0;border-radius:9px;margin-bottom:6px;cursor:pointer;background:white;font-family:Nunito,sans-serif;font-size:.85rem;text-align:left;transition:all .2s}",
+    "@media(max-width:700px){.layout{grid-template-columns:1fr}.sidebar{position:static;max-height:none}}"
+  ].join("\n");
 
-  // Sidebar
-  let sidebarHTML="";
-  units.forEach(u=>{
-    sidebarHTML+=`<div style="font-size:.62rem;font-weight:800;color:#A99EBD;text-transform:uppercase;letter-spacing:.7px;padding:6px 8px 3px">${u.name}</div>`;
-    allMods.filter(m=>m.unitId===u.id).forEach(m=>{
-      const isDone=prog[m.id]==="done";
-      sidebarHTML+=`<div onclick="showPreviewMod('${m.id}')" id="smenu-${m.id}"
-        style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;margin-bottom:3px;cursor:pointer;border:1.5px solid rgba(212,184,255,.2);background:white;transition:all .2s">
-        <div style="width:16px;height:16px;border-radius:50%;background:${isDone?"linear-gradient(135deg,#B8F0D8,#4DD9AC)":"#F0E8F8"};display:flex;align-items:center;justify-content:center;font-size:.58rem;color:${isDone?"white":"#A99EBD"};flex-shrink:0">${isDone?"✓":"○"}</div>
-        <span style="font-size:.76rem;font-weight:600;color:#4A3F5C">${m.label}</span>
-      </div>`;
-    });
-  });
-  // Also add mods not in any unit
-  mods.filter(mid=>!allMods.find(m=>m.id===mid)).forEach(mid=>{
-    const d=md[mid]||{};
-    sidebarHTML+=`<div onclick="showPreviewMod('${mid}')" id="smenu-${mid}"
-      style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;margin-bottom:3px;cursor:pointer;border:1.5px solid rgba(212,184,255,.2);background:white">
-      <div style="width:16px;height:16px;border-radius:50%;background:#F0E8F8;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:#A99EBD">○</div>
-      <span style="font-size:.76rem;font-weight:600;color:#4A3F5C">${d.title||mid}</span>
-    </div>`;
-  });
+  const js=[
+    "var raw=document.getElementById('__d').textContent.trim();",
+    "var D=JSON.parse(decodeURIComponent(escape(atob(raw))));",
+    "var md=D.modData||{},mods=D.previewMods||[],prog=D.progreso||{},allMods=D.allMods||[],units=D.units||[],cname=D.courseName||'Curso';",
+    "var idx=0;",
+    "var IC={intro:'📋',video:'🎬',lectura:'📄',foro:'💬',actividad:'🎮',quiz:'🧩',texto:'📝'};",
+    "var CO={intro:'#D4734A',video:'#3A7BC8',lectura:'#2A9D6A',foro:'#B08A00',actividad:'#8A4AC8',quiz:'#D4455A',texto:'#5B8C5A'};",
+    "var BG={intro:'rgba(212,115,74,.1)',video:'rgba(58,123,200,.1)',lectura:'rgba(42,157,106,.1)',foro:'rgba(176,138,0,.1)',actividad:'rgba(138,74,200,.1)',quiz:'rgba(212,68,90,.1)',texto:'rgba(91,140,90,.1)'};",
+    "function ytId(u){var m=(u||'').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null;}",
+    "function dEmbed(u){var m=(u||'').match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);return m?'https://drive.google.com/file/d/'+m[1]+'/preview':u;}",
+    "function sidebar(){",
+    "  var h='<div style="font-family:Pacifico,cursive;font-size:.9rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px">'+cname+'</div>';",
+    "  if(units.length){units.forEach(function(u){",
+    "    h+='<div style="font-size:.6rem;font-weight:800;color:#A99EBD;text-transform:uppercase;letter-spacing:.7px;padding:6px 4px 3px">'+u.name+'</div>';",
+    "    allMods.filter(function(m){return m.unitId===u.id;}).forEach(function(am){",
+    "      var i=mods.indexOf(am.id),done=prog[am.id]==='done';",
+    "      h+='<div class="mc'+(idx===i?' on':'')+'" onclick="go('+i+')" id="mc'+i+'"><div style="width:16px;height:16px;border-radius:50%;background:'+(done?'linear-gradient(135deg,#B8F0D8,#4DD9AC)':'#F0E8F8')+';display:flex;align-items:center;justify-content:center;font-size:.6rem;color:'+(done?'white':'#A99EBD')+'"> '+(done?'✓':'○')+'</div><span style="font-size:.76rem;font-weight:600;color:#4A3F5C">'+am.label+'</span></div>';",
+    "    });",
+    "  });} else {mods.forEach(function(mid,i){var d=md[mid]||{};",
+    "    h+='<div class="mc'+(idx===i?' on':'')+'" onclick="go('+i+')" id="mc'+i+'"><span style="font-size:.76rem;font-weight:600;color:#4A3F5C">'+(d.title||mid)+'</span></div>';",
+    "  });}",
+    "  document.getElementById('sb').innerHTML=h;",
+    "}",
+    "function render(){",
+    "  var mid=mods[idx],d=md[mid]||{};",
+    "  if(!mid||!d.type){document.getElementById('mc').innerHTML='<p style="color:#A99EBD;text-align:center;padding:40px">Sin contenido</p>';return;}",
+    "  var col=CO[d.type]||'#888',bg=BG[d.type]||'rgba(0,0,0,.06)',h='';",
+    "  h+='<div style="display:inline-block;padding:2px 12px;border-radius:12px;font-size:.72rem;font-weight:700;background:'+bg+';color:'+col+';margin-bottom:12px">'+(IC[d.type]||'')+' '+d.type+'</div>';",
+    "  h+='<h2 style="font-size:1.25rem;font-weight:800;margin-bottom:8px">'+(d.title||'')+'</h2>';",
+    "  h+='<p style="font-size:.9rem;color:#7A6E8A;line-height:1.7;margin-bottom:14px">'+(d.desc||'')+'</p>';",
+    "  if(d.objectives&&d.objectives.length){h+='<ul style="margin-bottom:14px">';d.objectives.forEach(function(o){h+='<li>'+o+'</li>';});h+='</ul>';}",
+    "  if(d.type==='video'&&d.url){var yt=ytId(d.url);h+=yt?'<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:14px 0"><iframe src="https://www.youtube.com/embed/'+yt+'" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>':'<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:14px 0"><iframe src="'+d.url+'" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>';}",
+    "  if(d.type==='lectura'&&d.url) h+='<iframe src="'+dEmbed(d.url)+'" style="height:1050px;margin:14px 0"></iframe>';",
+    "  if(d.type==='actividad'&&d.url) h+='<iframe src="'+d.url+'" style="height:520px;margin:14px 0"></iframe>';",
+    "  if(d.type==='foro') h+='<div style="background:#F8F4FF;border-radius:12px;padding:14px;margin:14px 0"><p style="font-size:.84rem;font-weight:700;color:#7A6E8A;margin-bottom:8px">💬 Escribe tu participación:</p><textarea style="width:100%;padding:10px;border-radius:10px;border:1.5px solid #EDD8F0;font-family:Nunito,sans-serif;font-size:.85rem;min-height:100px;resize:none;outline:none" placeholder="Tu respuesta..."></textarea></div>';",
+    "  if(d.type==='quiz'&&d.quiz&&d.quiz.preguntas){d.quiz.preguntas.forEach(function(p,qi){",
+    "    h+='<div style="background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px"><p style="font-weight:800;margin-bottom:10px;font-size:.9rem">❓ '+p.q+'</p>';",
+    "    p.opts.forEach(function(o,oi){h+='<button class="qo" onclick="chk('+qi+','+oi+','+p.correcta+')" id="qo'+qi+'_'+oi+'">'+o+'</button>';});",
+    "    h+='<div id="qfb'+qi+'" style="display:none;padding:7px 10px;border-radius:8px;font-size:.83rem;font-weight:700;margin-top:4px"></div></div>';",
+    "  });}",
+    "  if(d.subBlocks&&d.subBlocks.length){d.subBlocks.forEach(function(sb){",
+    "    h+='<div style="background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px"><p style="font-size:.84rem;font-weight:800;margin-bottom:10px">'+(IC[sb.type]||'📋')+' '+(sb.title||'')+'</p>';",
+    "    if(sb.type==='video'&&sb.url){var yt2=ytId(sb.url);h+=yt2?'<div style="position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden"><iframe src="https://www.youtube.com/embed/'+yt2+'" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>':'<iframe src="'+sb.url+'" style="height:300px"></iframe>';}", 
+    "    else if(sb.type==='lectura'&&sb.url) h+='<iframe src="'+dEmbed(sb.url)+'" style="height:1050px"></iframe>';",
+    "    else if(sb.type==='actividad'&&sb.url) h+='<iframe src="'+sb.url+'" style="height:480px"></iframe>';",
+    "    else if(sb.isRichText&&sb.desc) h+='<div style="font-size:.88rem;line-height:1.8">'+sb.desc+'</div>';",
+    "    else if(sb.desc) h+='<p style="font-size:.88rem;color:#7A6E8A;line-height:1.7">'+sb.desc+'</p>';",
+    "    h+='</div>';",
+    "  });}",
+    "  var last=idx===mods.length-1;",
+    "  h+='<div style="margin-top:24px;padding-top:14px;border-top:1.5px solid #F0E8F8;display:flex;justify-content:'+(last?'center':'flex-end')+'">';",
+    "  h+=last?'<span style="font-size:.9rem;color:#A99EBD">🎉 Fin del curso</span>':'<button onclick="nav(1)" style="padding:9px 22px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white;font-family:Nunito,sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">Siguiente →</button>';",
+    "  h+='</div>';",
+    "  document.getElementById('mc').innerHTML=h;",
+    "  document.getElementById('ctr').textContent=(idx+1)+'/'+mods.length;",
+    "  document.querySelectorAll('.mc').forEach(function(el,i){el.classList.toggle('on',i===idx);});",
+    "  document.getElementById('btnP').disabled=idx===0;",
+    "  document.getElementById('btnN').disabled=last;",
+    "}",
+    "function nav(d){idx=Math.max(0,Math.min(mods.length-1,idx+d));sidebar();render();}",
+    "function go(i){idx=i;sidebar();render();}",
+    "function chk(qi,oi,correcta){",
+    "  var fb=document.getElementById('qfb'+qi);",
+    "  var ok=oi===correcta;",
+    "  var cb=document.getElementById('qo'+qi+'_'+correcta);",
+    "  var wb=document.getElementById('qo'+qi+'_'+oi);",
+    "  if(cb){cb.style.border='1.5px solid #4DD9AC';cb.style.background='rgba(77,217,172,.12)';}",
+    "  if(!ok&&wb){wb.style.border='1.5px solid #F87';wb.style.background='rgba(255,136,119,.1)';}",
+    "  if(fb){fb.style.display='block';fb.style.background=ok?'rgba(77,217,172,.15)':'rgba(255,136,119,.15)';fb.style.color=ok?'#2A9D6A':'#D45B6A';fb.textContent=ok?'✅ ¡Correcto!':'❌ Incorrecto';}",
+    "  document.querySelectorAll('[id^="qo'+qi+'_"]').forEach(function(b){b.onclick=null;b.style.cursor='default';});",
+    "}",
+    "sidebar();render();"
+  ].join("\n");
 
-  return `<!DOCTYPE html><html lang="es"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Vista previa — ${courseName}</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Nunito',sans-serif;background:#FFFBF0;color:#4A3F5C;min-height:100vh;}
-.topbar{background:rgba(255,240,243,.97);backdrop-filter:blur(16px);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid rgba(255,188,202,.3);position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(200,160,200,.18);}
-.layout{display:grid;grid-template-columns:260px 1fr;gap:16px;max-width:1280px;margin:0 auto;padding:20px;min-height:calc(100vh - 60px);}
-.sidebar{background:white;border-radius:16px;padding:16px 12px;height:fit-content;box-shadow:0 4px 20px rgba(200,160,200,.15);position:sticky;top:76px;}
-.main{background:white;border-radius:16px;padding:28px 32px;box-shadow:0 4px 20px rgba(200,160,200,.15);}
-.btn{padding:6px 14px;border-radius:9px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:700;}
-.tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700;margin-bottom:10px;}
-iframe{border:none;border-radius:10px;display:block;width:100%;}
-ul{padding-left:20px;} ul li{margin-bottom:5px;font-size:.9rem;line-height:1.7;}
-</style></head>
-<body>
-<div class="topbar">
-  <div style="font-family:'Pacifico',cursive;font-size:1rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">👁 Vista previa — ${courseName}</div>
-  <div style="display:flex;gap:6px;align-items:center">
-    <button class="btn" onclick="nav(-1)" style="background:white;border:1.5px solid #EDD8F0;color:#7A6E8A">← Anterior</button>
-    <span id="ctr" style="font-size:.78rem;color:#A99EBD">1/${mods.length}</span>
-    <button class="btn" onclick="nav(1)" style="background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white">Siguiente →</button>
-    <button class="btn" onclick="window.close()" style="background:rgba(255,100,120,.1);color:#E05A5A">✕</button>
-  </div>
-</div>
-<div class="layout">
-  <div class="sidebar">
-    <div style="font-family:'Pacifico',cursive;font-size:.9rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px">${courseName}</div>
-    ${sidebarHTML}
-  </div>
-  <div class="main" id="main-content">Cargando...</div>
-</div>
-<scr"+"ipt>
-const __md=${JSON.stringify(md)};
-const __mods=${JSON.stringify(mods)};
-const __prog=${JSON.stringify(prog)};
-let __idx=0;
-const TYPE_ICONS={intro:"📋",video:"🎬",lectura:"📄",foro:"💬",actividad:"🎮",quiz:"🧩",texto:"📝"};
-const TYPE_COLORS={intro:"#D4734A",video:"#3A7BC8",lectura:"#2A9D6A",foro:"#B08A00",actividad:"#8A4AC8",quiz:"#D4455A"};
-const TYPE_BG={intro:"rgba(212,115,74,.12)",video:"rgba(58,123,200,.12)",lectura:"rgba(42,157,106,.12)",foro:"rgba(176,138,0,.12)",actividad:"rgba(138,74,200,.12)",quiz:"rgba(212,68,90,.12)"};
-function getYTId(url){const m=(url||"").match(/(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([A-Za-z0-9_\\-]{11})/);return m?m[1]:null;}
-function toDriveEmbed(url){const m=(url||"").match(/drive\\.google\\.com\\/file\\/d\\/([a-zA-Z0-9_\\-]+)/);return m?"https://drive.google.com/file/d/"+m[1]+"/preview":url;}
-function renderMod(modId){
-  const d=__md[modId];
-  if(!d){document.getElementById("main-content").innerHTML="<p style='color:#A99EBD;text-align:center;padding:40px'>Sin contenido</p>";return;}
-  let html=\`<span class="tag" style="background:\${TYPE_BG[d.type]};color:\${TYPE_COLORS[d.type]}">\${d.type}</span>
-    <h2 style="font-size:1.2rem;font-weight:800;color:#4A3F5C;margin-bottom:8px">\${d.title||""}</h2>
-    <p style="font-size:.88rem;color:#7A6E8A;line-height:1.7;margin-bottom:14px">\${d.desc||""}</p>\`;
-  if(d.objectives&&d.objectives.length){html+=\`<ul>\${d.objectives.map(o=>\`<li>\${o}</li>\`).join("")}</ul>\`;}
-  if(d.type==="video"&&d.url){
-    const ytId=getYTId(d.url);
-    if(ytId) html+=\`<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:12px 0"><iframe src="https://www.youtube.com/embed/\${ytId}" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>\`;
-    else html+=\`<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:12px 0"><iframe src="\${d.url}" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>\`;
-  }
-  if(d.type==="lectura"&&d.url) html+=\`<iframe src="\${toDriveEmbed(d.url)}" style="height:900px;margin:12px 0"></iframe>\`;
-  if(d.type==="actividad"&&d.url) html+=\`<iframe src="\${d.url}" style="height:520px;margin:12px 0"></iframe>\`;
-  if(d.type==="foro") html+=\`<div style="background:#F8F4FF;border-radius:12px;padding:14px;margin:12px 0"><p style="font-size:.84rem;color:#7A6E8A">💬 Foro — escribe tu participación</p></div><textarea id="foro-inp" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid #EDD8F0;font-family:Nunito,sans-serif;font-size:.85rem;min-height:80px;resize:none;outline:none" placeholder="Tu respuesta..."></textarea>\`;
-  if(d.type==="quiz"&&d.quiz?.preguntas){
-    html+=d.quiz.preguntas.map((p,qi)=>\`<div style="background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px"><p style="font-weight:800;margin-bottom:10px">❓ \${p.q}</p>\${p.opts.map((o,oi)=>\`<button onclick="chk(\${qi},\${oi},\${p.correcta})" id="qo-\${qi}-\${oi}" style="display:block;width:100%;padding:9px 12px;border:1.5px solid #EDD8F0;border-radius:9px;margin-bottom:6px;cursor:pointer;background:white;font-family:Nunito,sans-serif;font-size:.85rem;text-align:left">\${o}</button><div id="qfb-\${qi}" style="display:none;padding:6px;border-radius:8px;font-size:.83rem;font-weight:600;margin-top:3px"></div>\`).join("")}</div>\`).join("");}
-  // Sub-blocks
-  if(d.subBlocks&&d.subBlocks.length){
-    d.subBlocks.forEach(sb=>{
-      html+=\`<div style="background:#F8F4FF;border-radius:12px;padding:14px;margin-bottom:10px"><p style="font-size:.84rem;font-weight:800;margin-bottom:8px">\${TYPE_ICONS[sb.type]||"📋"} \${sb.title}</p>\`;
-      if(sb.type==="video"&&sb.url){const ytId=getYTId(sb.url);html+=ytId?\`<div style="position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden"><iframe src="https://www.youtube.com/embed/\${ytId}" style="position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>\`:\`<iframe src="\${sb.url}" style="height:280px"></iframe>\`;}
-      else if(sb.type==="lectura"&&sb.url) html+=\`<iframe src="\${toDriveEmbed(sb.url)}" style="height:1050px"></iframe>\`;
-      else if(sb.type==="actividad"&&sb.url) html+=\`<iframe src="\${sb.url}" style="height:480px"></iframe>\`;
-      else if(sb.isRichText&&sb.desc) html+=\`<div style="font-size:.88rem;line-height:1.8;color:#4A3F5C">\${sb.desc}</div>\`;
-      html+=\`</div>\`;
-    });
-  }
-  // Navigation
-  const isLast=__idx===__mods.length-1;
-  html+=\`<div style="margin-top:20px;padding-top:14px;border-top:1.5px solid #F0E8F8;display:flex;justify-content:\${isLast?"center":"flex-end"}">\${isLast?\`<span style="font-size:.9rem;color:#A99EBD">🎉 Fin del curso — Vista previa</span>\`:\`<button onclick="nav(1)" style="padding:8px 20px;border-radius:11px;border:none;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white;font-family:Nunito,sans-serif;font-weight:700;font-size:.84rem;cursor:pointer">Siguiente →</button>\`}</div>\`;
-  document.getElementById("main-content").innerHTML=html;
-  document.getElementById("ctr").textContent=(__idx+1)+"/"+__mods.length;
-  // Highlight active sidebar item
-  document.querySelectorAll("[id^='smenu-']").forEach(el=>{
-    el.style.background=el.id==="smenu-"+modId?"linear-gradient(135deg,#FFBCCA,#D4B8FF)":"white";
-    el.style.color=el.id==="smenu-"+modId?"white":"#4A3F5C";
-    el.querySelectorAll("span").forEach(s=>s.style.color=el.id==="smenu-"+modId?"white":"#4A3F5C");
-  });
+  return '<!DOCTYPE html><html lang="es"><head>'+
+    '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<title>Vista previa</title>'+
+    '<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">'+
+    '<style>'+css+'</style>'+
+    '</head><body>'+
+    '<scr'+'ipt id="__d" type="application/json">'+b64+'<\/scr'+'ipt>'+
+    '<div class="topbar">'+
+      '<div style="font-family:Pacifico,cursive;font-size:1rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">👁 Vista previa — '+data.courseName+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:center">'+
+        '<button class="nbtn" id="btnP" onclick="nav(-1)" style="background:white;border:1.5px solid #EDD8F0;color:#7A6E8A">← Ant.</button>'+
+        '<span id="ctr" style="font-size:.78rem;color:#A99EBD;min-width:40px;text-align:center">-/-</span>'+
+        '<button class="nbtn" id="btnN" onclick="nav(1)" style="background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white">Sig. →</button>'+
+        '<button class="nbtn" onclick="window.close()" style="background:rgba(255,100,120,.1);color:#E05A5A;margin-left:6px">✕</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="layout">'+
+      '<div class="sidebar" id="sb"></div>'+
+      '<div class="main" id="mc"><p style="color:#A99EBD;text-align:center;padding:40px">Cargando...</p></div>'+
+    '</div>'+
+    '<scr'+'ipt>'+js+'<\/scr'+'ipt>'+
+    '</body></html>';
 }
-function nav(dir){__idx=Math.max(0,Math.min(__mods.length-1,__idx+dir));renderMod(__mods[__idx]);}
-function showPreviewMod(id){__idx=__mods.indexOf(id);if(__idx<0)__idx=0;renderMod(__mods[__idx]);}
-function chk(qi,oi,correcta){
-  const fb=document.getElementById("qfb-"+qi);
-  const cb=document.getElementById("qo-"+qi+"-"+correcta);
-  const wb=document.getElementById("qo-"+qi+"-"+oi);
-  if(cb){cb.style.border="1.5px solid #4DD9AC";cb.style.background="rgba(77,217,172,.1)";}
-  if(oi!==correcta&&wb){wb.style.border="1.5px solid #F87";wb.style.background="rgba(255,136,119,.1)";}
-  if(fb){fb.style.display="block";fb.style.background=oi===correcta?"rgba(77,217,172,.15)":"rgba(255,136,119,.15)";fb.style.color=oi===correcta?"#2A9D6A":"#D45B6A";fb.textContent=oi===correcta?"✅ ¡Correcto!":"❌ Incorrecto";}
-}
-window.onload=()=>renderMod(__mods[0]);
-<\/scr"+"ipt></body></html>`;
-}
+
 function closePreview(){
   const o=document.getElementById("preview-overlay");
   if(o){o.classList.remove("open");DESIGN_CLASSES.forEach(c=>o.classList.remove(c));}
