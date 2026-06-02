@@ -3390,13 +3390,6 @@ function confirmSubBlock(){
   logChange("Contenido agregado: "+title+" ("+addModType+")");
   toast("✨ Contenido agregado");
 }
-function delSubBlock(uid,modId){
-  const el=document.getElementById(uid);
-  if(el){el.style.opacity="0";el.style.transition="opacity .3s";setTimeout(()=>el.remove(),300);}
-  if(modId&&modData[modId]?.subBlocks){modData[modId].subBlocks=modData[modId].subBlocks.filter(s=>s.uid!==uid);}
-  toast("🗑 Eliminado");
-}
-
 /* ══ NUEVO MÓDULO PRINCIPAL ══ */
 function confirmNewMod(){
   const name=document.getElementById("nm-name").value.trim()||"Nuevo módulo";
