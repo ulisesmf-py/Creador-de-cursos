@@ -1541,79 +1541,97 @@ let _selectedStudentEmail = null;
 function openJoinModal(id, s){
   pendingSessionId=id; pendingSession=s;
   _selectedStudentEmail=null;
-  document.getElementById("join-session-icon").textContent=s.icon;
-  document.getElementById("join-session-name").textContent=s.nombre;
-  document.getElementById("join-session-err").style.display="none";
-  document.getElementById("join-pass-input").value="";
 
+  // Set modal header
+  const iconEl=document.getElementById("join-session-icon");
+  const nameEl=document.getElementById("join-session-name");
+  const errEl=document.getElementById("join-session-err");
+  const passEl=document.getElementById("join-pass-input");
   const studentsDiv=document.getElementById("join-session-students");
-  studentsDiv.innerHTML=`<div style="text-align:center;padding:10px;color:#A99EBD;font-size:.8rem">⏳ Cargando...</div>`;
 
+  if(iconEl) iconEl.textContent=s.icon||"🌸";
+  if(nameEl) nameEl.textContent=s.nombre||id;
+  if(errEl) errEl.style.display="none";
+  if(passEl) passEl.value="";
+  if(studentsDiv) studentsDiv.innerHTML="";
+
+  // Open modal immediately
+  oM("modal-join-session");
+  setTimeout(()=>passEl?.focus(),300);
+
+  // Load assigned students async (non-blocking)
   const alumnos=s.alumnos||[];
-  if(alumnos.length===0){
-    studentsDiv.innerHTML=`<p style="font-size:.8rem;color:#A99EBD">No hay alumnas asignadas a esta sesión.</p>`;
-    oM("modal-join-session");
+  if(!alumnos.length){
+    if(studentsDiv) studentsDiv.innerHTML=`<p style="font-size:.8rem;color:#A99EBD;text-align:center">Sin alumnas asignadas — escribe tu correo y contraseña</p>`;
+    // Show email input for unassigned sessions
+    if(studentsDiv){
+      const emailWrap=document.createElement("div");
+      emailWrap.style.cssText="position:relative;margin-bottom:10px";
+      emailWrap.innerHTML=`<input id="join-email-input" type="text" placeholder="nombre" style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:150px;" oninput="updateJoinEmail()"><span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.8rem;color:#A99EBD;pointer-events:none">@student.blackai.com</span>`;
+      studentsDiv.innerHTML="";
+      studentsDiv.appendChild(emailWrap);
+    }
     return;
   }
 
-  // Open modal immediately, load students in background
-  oM("modal-join-session");
-  setTimeout(()=>document.getElementById("join-pass-input")?.focus(),300);
+  if(studentsDiv) studentsDiv.innerHTML=`<p style="font-size:.75rem;color:#A99EBD;margin-bottom:8px;text-align:center">Selecciona tu nombre:</p>`;
 
-  // Load student profiles from /students
-  const promises=alumnos.map(aid=>
-    db.ref("students").orderByChild("username").equalTo(aid).once("value").then(snap=>{
-      const val=snap.val();
-      if(val){
-        const uid=Object.keys(val)[0];
-        const s=val[uid];
-        return {uid, id:s.username||aid, firstName:(s.name||aid).split(" ")[0], nombre:s.name||aid, email:s.email||(aid+"@student.blackai.com")};
-      }
-      // Fallback: try by uid directly
-      return db.ref("students/"+aid).once("value").then(s2=>{
-        const s=s2.val();
-        if(s) return {uid:aid, id:s.username||aid, firstName:(s.name||aid).split(" ")[0], nombre:s.name||aid, email:s.email||(aid+"@student.blackai.com")};
-        return {uid:aid, id:aid, firstName:aid, nombre:aid, email:aid+"@student.blackai.com"};
-      });
-    }).catch(()=>({uid:aid, id:aid, firstName:aid, nombre:aid, email:aid+"@student.blackai.com"}))
-  );
-
-  Promise.all(promises).then(students=>{
-    studentsDiv.innerHTML=`<p style="font-size:.75rem;color:#A99EBD;margin-bottom:8px;text-align:center">Selecciona tu nombre:</p>`;
-    students.filter(Boolean).forEach(st=>{
-      const firstName=st.firstName||(st.nombre||"").split(" ")[2]||(st.nombre||"").split(" ")[0]||st.id;
-      const email=st.email||(firstName.toLowerCase()+"@student.blackai.com");
-      const card=document.createElement("div");
-      card.style.cssText="display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;border:2px solid rgba(255,143,163,.2);background:#FFFBF0;cursor:pointer;transition:all .2s;";
-      card.onclick=()=>{
-        // Deselect all
-        studentsDiv.querySelectorAll("[data-student]").forEach(c=>{
-          c.style.borderColor="rgba(255,143,163,.2)";
-          c.style.background="#FFFBF0";
-          c.querySelector(".check-icon").style.opacity="0";
+  // Try to load from Firebase, fallback to showing IDs
+  const tryLoad=()=>{
+    try{
+      const promises=alumnos.map(aid=>
+        db.ref("students").orderByChild("username").equalTo(aid).once("value")
+          .then(snap=>{
+            const val=snap.val();
+            if(val){
+              const uid=Object.keys(val)[0];
+              const st=val[uid];
+              return {uid,id:st.username||aid,firstName:(st.name||aid).split(" ")[0],email:st.email||(aid+"@student.blackai.com")};
+            }
+            return {uid:aid,id:aid,firstName:aid,email:aid+"@student.blackai.com"};
+          }).catch(()=>({uid:aid,id:aid,firstName:aid,email:aid+"@student.blackai.com"}))
+      );
+      Promise.all(promises).then(students=>{
+        if(!studentsDiv) return;
+        studentsDiv.innerHTML=`<p style="font-size:.75rem;color:#A99EBD;margin-bottom:8px;text-align:center">Selecciona tu nombre:</p>`;
+        students.filter(Boolean).forEach(st=>{
+          const firstName=st.firstName||st.id;
+          const email=st.email;
+          const card=document.createElement("div");
+          card.style.cssText="display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;border:2px solid rgba(255,143,163,.2);background:#FFFBF0;cursor:pointer;transition:all .2s;margin-bottom:6px";
+          card.onclick=()=>{
+            studentsDiv.querySelectorAll("[data-student]").forEach(c=>{c.style.borderColor="rgba(255,143,163,.2)";c.style.background="#FFFBF0";c.querySelector(".check-icon").style.opacity="0";});
+            card.style.borderColor="var(--accent)";card.style.background="rgba(255,143,163,.08)";
+            card.querySelector(".check-icon").style.opacity="1";
+            _selectedStudentEmail=email;
+            document.getElementById("join-pass-input")?.focus();
+          };
+          card.dataset.student=st.id;
+          card.innerHTML=`
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.9rem;flex-shrink:0">${(firstName[0]||"?").toUpperCase()}</div>
+            <div style="flex:1;text-align:left">
+              <div style="font-size:.9rem;font-weight:800;color:#4A3F5C">${firstName}</div>
+              <div style="font-size:.7rem;color:#A99EBD">${email}</div>
+            </div>
+            <span class="check-icon" style="opacity:0;color:var(--accent);font-size:1.1rem">✓</span>`;
+          studentsDiv.appendChild(card);
         });
-        // Select this one
-        card.style.borderColor="var(--accent)";
-        card.style.background="rgba(255,143,163,.08)";
-        card.querySelector(".check-icon").style.opacity="1";
-        _selectedStudentEmail=email;
-        document.getElementById("join-pass-input").focus();
-      };
-      card.dataset.student=st.id||st.uid;
-      card.innerHTML=`
-        <div style="width:36px;height:36px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.9rem;flex-shrink:0">${firstName[0].toUpperCase()}</div>
-        <div style="flex:1;text-align:left">
-          <div style="font-size:.9rem;font-weight:800;color:#4A3F5C">${firstName}</div>
-          <div style="font-size:.7rem;color:#A99EBD">${email}</div>
-        </div>
-        <span class="check-icon" style="opacity:0;color:var(--accent);font-size:1.1rem;transition:opacity .2s">✓</span>`;
-      studentsDiv.appendChild(card);
-    });
-    // Modal already open, just update focus
-    setTimeout(()=>document.getElementById("join-pass-input")?.focus(),100);
-  });
+      }).catch(()=>{
+        if(studentsDiv) studentsDiv.innerHTML=`<p style="font-size:.8rem;color:#A99EBD;text-align:center">Escribe tu correo y contraseña directamente</p>`;
+      });
+    }catch(e){
+      if(studentsDiv) studentsDiv.innerHTML=`<p style="font-size:.8rem;color:#A99EBD;text-align:center">Escribe tu correo y contraseña directamente</p>`;
+    }
+  };
+  tryLoad();
 }
 
+function updateJoinEmail(){
+  const inp=document.getElementById("join-email-input");
+  if(!inp) return;
+  const val=inp.value.trim().toLowerCase().replace(/\s+/g,"");
+  _selectedStudentEmail=val?(val.includes("@")?val:val+"@student.blackai.com"):null;
+}
 function doJoinSession(){
   const pass=document.getElementById("join-pass-input")?.value||"";
   const errEl=document.getElementById("join-session-err");
