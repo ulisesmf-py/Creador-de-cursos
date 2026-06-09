@@ -1784,7 +1784,15 @@ function applyPublicMode(){
     .mod-add-row,.unit-add-row,.add-unit-btn,.add-mod-btn,.delete-mod-btn{display:none!important}
     [contenteditable]{pointer-events:none!important;outline:none!important;cursor:default!important;-webkit-user-modify:read-only!important}
     .sidebar-course-name{pointer-events:none!important}
+    .url-input,.url-helper{display:none!important}
+    .completion-selector{display:none!important}
+    .completion-hint{display:none!important}
+    button[onclick*="addObjective"]{display:none!important}
+    button[onclick*="oM('modal"]{display:none!important}
+    .quiz-edit{display:none!important}
     button[onclick*="Nuevo módulo"],button[onclick*="Nueva unidad"],button[onclick*="Eliminar"]{display:none!important}
+    .sub-block .del-btn{display:none!important}
+    #mod-add-sub{display:none!important}
   `;
   document.head.appendChild(style);
 }
@@ -2634,11 +2642,16 @@ function showMod(id){
     {val:"actividad",label:"Completar la actividad",icon:"🎮"},
     {val:"apuntes",label:"Escribir apuntes",icon:"📝"},
   ];
-  const compHtml=`
+  // Only show completion selector in teacher/editor mode
+  const compHtml=window._isPublicCourse?"":(`
     <div class="completion-selector">
       <p>🎯 ¿Qué debe hacer el alumno para completar este módulo?</p>
       ${compOptions.map(o=>`<button class="comp-opt${d.compTrigger===o.val?" selected":""}" onclick="setCompTrigger('${id}','${o.val}',this)"><span class="comp-icon">${o.icon}</span>${o.label}</button>`).join("")}
-    </div>`;
+    </div>`);
+  // Auto-mark done when public student visits any non-quiz page
+  if(window._isPublicCourse && d.type!=="quiz"){
+    setTimeout(()=>markDone(id),1200);
+  }
 
   /* —— Contenido principal por tipo —— */
   let mainContent="";
@@ -2789,15 +2802,17 @@ function showMod(id){
     </div>
     ${mainContent}
     <div id="sub-blocks-${id}" style="margin-top:4px">${subHtml}</div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+    ${window._isPublicCourse?"":`<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
       <button class="add-btn" onclick="openSubModal('sub-blocks-${id}')">➕ Agregar contenido aquí</button>
-    </div>
+    </div>`}
     <div style="margin-top:18px;padding-top:14px;border-top:2px solid rgba(212,184,255,.2)">${compHtml}</div>
     <div class="panel-bottom">
       <div class="completion-hint">🎯 Completa: <strong>${getCompLabel(d.compTrigger)}</strong></div>
       ${nextId
         ?`<button class="nav-btn-sm nxt" onclick="showMod('${nextId}')">Continuar →</button>`
-        :`<button class="nav-btn-sm nxt" onclick="showCourseRating()" style="background:linear-gradient(135deg,#4DD9AC,#5BA3F5)">🏁 Finalizar curso</button>`
+        :window._isPublicCourse
+          ?`<button class="nav-btn-sm nxt" onclick="showCourseRating()" style="background:linear-gradient(135deg,#4DD9AC,#5BA3F5)">🏁 Finalizar curso</button>`
+          :`<button class="nav-btn-sm nxt" onclick="showCourseRating()" style="background:linear-gradient(135deg,#4DD9AC,#5BA3F5)">🏁 Finalizar curso</button>`
       }
     </div>
     ${!nextId?`
@@ -2820,6 +2835,10 @@ function showMod(id){
       <div id="rating-sent" style="display:none;margin-top:12px;color:#2A9D6A;font-weight:700;font-size:.85rem">✅ ¡Gracias por tu calificación!</div>
     </div>`:""}
     </div>`;
+  /* ── Quiz score panel for last quiz in public mode ── */
+  if(window._isPublicCourse && d.type==="quiz" && !nextId){
+    setTimeout(()=>renderPublicQuiz(id),100);
+  }
 
   /* Cargar video si existe */
   if(d.type==="video"&&d.url){
@@ -2830,6 +2849,95 @@ function showMod(id){
 function getCompLabel(t){
   const m={ninguno:"Automático",ver_video:"Ver el video",foro:"Participar en el foro",quiz:"Responder el quiz",actividad:"Completar la actividad",apuntes:"Escribir apuntes"};
   return m[t]||t;
+}
+
+/* ══ QUIZ PÚBLICO CON CALIFICACIÓN ══ */
+function renderPublicQuiz(modId){
+  const d=modData[modId];
+  if(!d||!d.quiz||!d.quiz.preguntas) return;
+  const preguntas=d.quiz.preguntas;
+  const panel=document.getElementById("mod-panel");
+  if(!panel) return;
+
+  // Build interactive quiz with score tracking
+  const quizDiv=document.createElement("div");
+  quizDiv.id="public-quiz-panel";
+  quizDiv.style.cssText="background:white;border:1.5px solid rgba(212,184,255,.3);border-radius:16px;padding:22px;margin-top:20px";
+  quizDiv.innerHTML=`
+    <h3 style="font-family:'Pacifico',cursive;font-size:1rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px">🧩 Quiz final</h3>
+    <div id="pq-questions">
+      ${preguntas.map((p,qi)=>`
+        <div class="pq-item" id="pq-${qi}" style="background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px">
+          <p style="font-weight:800;font-size:.9rem;color:#4A3F5C;margin-bottom:10px">❓ ${p.q}</p>
+          ${p.opts.map((o,oi)=>`
+            <button class="pq-opt" id="pqo-${qi}-${oi}" onclick="publicQuizAnswer(${qi},${oi},${p.correcta})"
+              style="display:block;width:100%;padding:9px 14px;border:1.5px solid #EDD8F0;border-radius:9px;margin-bottom:6px;cursor:pointer;background:white;font-family:'Nunito',sans-serif;font-size:.85rem;text-align:left;transition:all .2s">
+              ${o}
+            </button>`).join("")}
+          <div id="pqfb-${qi}" style="display:none;padding:7px 10px;border-radius:8px;font-size:.83rem;font-weight:700;margin-top:4px"></div>
+        </div>`).join("")}
+    </div>
+    <div id="pq-submit-row" style="text-align:center;margin-top:16px">
+      <button onclick="submitPublicQuiz(${preguntas.length})"
+        style="padding:11px 28px;border-radius:12px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:.88rem;cursor:pointer">
+        ✅ Ver mi calificación
+      </button>
+    </div>
+    <div id="pq-result" style="display:none"></div>`;
+  panel.appendChild(quizDiv);
+  window._pqAnswers={};
+  window._pqTotal=preguntas.length;
+}
+
+function publicQuizAnswer(qi,oi,correcta){
+  // Store answer
+  if(!window._pqAnswers) window._pqAnswers={};
+  if(window._pqAnswers[qi]!==undefined) return; // already answered
+  window._pqAnswers[qi]=oi;
+  const ok=oi===correcta;
+  const fb=document.getElementById("pqfb-"+qi);
+  const cb=document.getElementById("pqo-"+qi+"-"+correcta);
+  const wb=document.getElementById("pqo-"+qi+"-"+oi);
+  if(cb){cb.style.border="1.5px solid #4DD9AC";cb.style.background="rgba(77,217,172,.12)";}
+  if(!ok&&wb){wb.style.border="1.5px solid #F87";wb.style.background="rgba(255,136,119,.1)";}
+  if(fb){fb.style.display="block";fb.style.background=ok?"rgba(77,217,172,.15)":"rgba(255,136,119,.15)";fb.style.color=ok?"#2A9D6A":"#D45B6A";fb.textContent=ok?"✅ ¡Correcto!":"❌ Incorrecto";}
+  // Disable all options for this question
+  document.querySelectorAll(`[id^="pqo-${qi}-"]`).forEach(b=>{b.onclick=null;b.style.cursor="default";});
+}
+
+function submitPublicQuiz(total){
+  if(!window._pqAnswers) window._pqAnswers={};
+  const answered=Object.keys(window._pqAnswers).length;
+  if(answered<total){
+    toast("⚠️ Responde todas las preguntas primero");return;
+  }
+  // Count correct
+  const d=modData[currentModId];
+  const preguntas=d.quiz.preguntas;
+  let correct=0;
+  preguntas.forEach((p,qi)=>{
+    if(window._pqAnswers[qi]===p.correcta) correct++;
+  });
+  const pct=Math.round((correct/total)*100);
+  const emoji=pct>=80?"🏆":pct>=60?"👍":pct>=40?"📚":"💪";
+  const msg=pct>=80?"¡Excelente trabajo!":pct>=60?"¡Buen esfuerzo!":pct>=40?"Sigue practicando":"¡No te rindas!";
+
+  document.getElementById("pq-submit-row").style.display="none";
+  const result=document.getElementById("pq-result");
+  result.style.display="block";
+  result.innerHTML=`
+    <div style="text-align:center;padding:24px;background:linear-gradient(135deg,rgba(77,217,172,.08),rgba(91,163,245,.08));border-radius:14px;border:1.5px solid rgba(77,217,172,.25);margin-top:16px">
+      <div style="font-size:3rem;margin-bottom:10px">${emoji}</div>
+      <h3 style="font-family:'Pacifico',cursive;font-size:1.2rem;color:#4A3F5C;margin-bottom:6px">${msg}</h3>
+      <div style="font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,#4DD9AC,#5BA3F5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px">${pct}%</div>
+      <p style="font-size:.88rem;color:#7A6E8A;margin-bottom:16px">Respondiste <strong>${correct} de ${total}</strong> preguntas correctamente</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button onclick="location.reload()" style="padding:10px 22px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">🔄 Volver a tomar el curso</button>
+        <button onclick="showCourseRating()" style="padding:10px 22px;border-radius:12px;border:none;background:linear-gradient(135deg,#4DD9AC,#5BA3F5);color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">⭐ Calificar el curso</button>
+      </div>
+    </div>`;
+  markDone(currentModId);
+  result.scrollIntoView({behavior:"smooth"});
 }
 
 /* ══ PUBLICAR CURSO ══ */
