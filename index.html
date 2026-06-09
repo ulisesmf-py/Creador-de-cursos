@@ -1556,7 +1556,11 @@ function openJoinModal(id, s){
     return;
   }
 
-  // Load student profiles from /students (new unified path)
+  // Open modal immediately, load students in background
+  oM("modal-join-session");
+  setTimeout(()=>document.getElementById("join-pass-input")?.focus(),300);
+
+  // Load student profiles from /students
   const promises=alumnos.map(aid=>
     db.ref("students").orderByChild("username").equalTo(aid).once("value").then(snap=>{
       const val=snap.val();
@@ -1605,7 +1609,8 @@ function openJoinModal(id, s){
         <span class="check-icon" style="opacity:0;color:var(--accent);font-size:1.1rem;transition:opacity .2s">✓</span>`;
       studentsDiv.appendChild(card);
     });
-    oM("modal-join-session");
+    // Modal already open, just update focus
+    setTimeout(()=>document.getElementById("join-pass-input")?.focus(),100);
   });
 }
 
