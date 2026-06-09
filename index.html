@@ -665,9 +665,9 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
   <div class="hero">
     <div class="hero-greeting">👋 Bienvenida, <strong id="hero-name">Grecia</strong></div>
     <div id="hero-badge" class="role-badge alumna">🎓 Alumna</div>
-    <div class="hero-title">Tu aula sin fronteras 🌸</div>
-    <div class="hero-sub">Elige el tipo de curso que quieres explorar hoy</div>
-    <div class="cpills">
+    <div class="hero-title" id="hero-title">Tu aula sin fronteras 🌸</div>
+    <div class="hero-sub" id="hero-sub">Elige el tipo de curso que quieres explorar hoy</div>
+    <div class="cpills" id="type-tabs">
       <button class="cpill active" onclick="showSec('mooc',this)">📚 MOOC</button>
       <button class="cpill" onclick="showSec('micro',this)">⚡ Microlearning</button>
       <button class="cpill" onclick="showSec('blearning',this)">🏫 B-Learning</button>
@@ -1719,38 +1719,74 @@ function enterApp(){
   document.getElementById("screen-app").style.display="block";
   document.getElementById("main-nav").style.display="flex";
 
-  // Get first name from /students record
   const firstName=currentMember.name||"Alumna";
-
   document.getElementById("hero-name").textContent=firstName;
   document.getElementById("nav-uname").textContent=firstName;
   document.getElementById("nav-avatar").textContent=firstName[0].toUpperCase();
   const b=document.getElementById("hero-badge");
-  b.textContent="\uD83C\uDFF7\uFE0F "+currentSession.nombre;
+  b.textContent="🏷️ "+currentSession.nombre;
   b.className="role-badge alumna";
-  toast("\u00A1Bienvenida, "+firstName+"! \uD83C\uDF38 \u2014 "+currentSession.nombre);
+  toast("¡Bienvenida, "+firstName+"! 🌸 — "+currentSession.nombre);
 
-  buildClassmates();
-  setupPresence();
-  const sb=document.getElementById("manual-save-btn");
-  if(sb) sb.style.display="inline-block";
+  // PUBLIC MODE — hide all editing UI
+  if(window._isPublicCourse){
+    applyPublicMode();
+  } else {
+    buildClassmates();
+    setupPresence();
+    const sb=document.getElementById("manual-save-btn");
+    if(sb) sb.style.display="inline-block";
+  }
 
-  // Load from isolated session path /pedagogia/s/{sessionId}/
   db.ref("pedagogia/s/"+currentSession.id).once("value").then(snap=>{
     const data=snap.val();
-    // Store the hash of what we just loaded so realtime sync doesn't overwrite it
     window._lastRemoteHash=JSON.stringify(data);
     loadSession(data);
-    // Start realtime sync AFTER load settles
-    setTimeout(()=>startRealtimeSync(),800);
+    // Show course name in hero title for public mode
+    if(window._isPublicCourse){
+      const courseName=data?.courseName||currentSession.nombre||"Curso";
+      const heroTitle=document.querySelector(".hero-title");
+      if(heroTitle) heroTitle.textContent=courseName;
+    }
+    if(!window._isPublicCourse) setTimeout(()=>startRealtimeSync(),800);
   }).catch(()=>{
     try{
       const backup=localStorage.getItem("eva_s_"+currentSession.id);
       if(backup) loadSession(JSON.parse(backup));
       else loadSession(null);
     }catch(e){loadSession(null);}
-    setTimeout(()=>startRealtimeSync(),800);
+    if(!window._isPublicCourse) setTimeout(()=>startRealtimeSync(),800);
   });
+}
+
+function applyPublicMode(){
+  // Hide nav buttons completely
+  const nav=document.getElementById("main-nav");
+  if(nav){
+    nav.querySelectorAll("button:not(#nav-avatar)").forEach(b=>b.style.display="none");
+    const label=document.createElement("span");
+    label.style.cssText="font-size:.78rem;color:var(--text-soft);font-weight:600;padding:6px 12px";
+    label.textContent="📖 Modo público";
+    nav.insertBefore(label, nav.querySelector(".nav-btns"));
+  }
+  // Hide type tabs and change hero sub text
+  document.getElementById("type-tabs").style.display="none";
+  document.getElementById("hero-sub").textContent="Lee, explora y aprende a tu ritmo";
+  // Update hero title with course name after load
+  // (done in enterApp after Firebase loads)
+
+  // CSS to nuke all editing UI
+  const style=document.createElement("style");
+  style.textContent=`
+    .add-btn,.del-btn,.load-btn,.preview-btn,#publish-btn{display:none!important}
+    [onclick*="openSubModal"],[onclick*="addMod"],[onclick*="addUnit"],[onclick*="toggleDesign"],[onclick*="delMod"],[onclick*="delEl"]{display:none!important}
+    #manual-save-btn{display:none!important}
+    .mod-add-row,.unit-add-row,.add-unit-btn,.add-mod-btn,.delete-mod-btn{display:none!important}
+    [contenteditable]{pointer-events:none!important;outline:none!important;cursor:default!important;-webkit-user-modify:read-only!important}
+    .sidebar-course-name{pointer-events:none!important}
+    button[onclick*="Nuevo módulo"],button[onclick*="Nueva unidad"],button[onclick*="Eliminar"]{display:none!important}
+  `;
+  document.head.appendChild(style);
 }
 
 function logout(){
@@ -2550,24 +2586,6 @@ function loadPublicCourse(sessionId){
     isTeacher=false;
     window._isPublicCourse=true;
     enterApp();
-    // Hide all editing UI after app loads
-    setTimeout(()=>{
-      [".add-btn",".del-btn",".load-btn",".preview-btn","#publish-btn",
-       "[onclick*='openSubModal']","[onclick*='addMod']",
-       "[onclick*='addUnit']","[onclick*='delEl']","[onclick*='delMod']"].forEach(sel=>{
-        document.querySelectorAll(sel).forEach(el=>el.style.display="none");
-      });
-      document.querySelectorAll("[contenteditable]").forEach(el=>el.removeAttribute("contenteditable"));
-      document.querySelectorAll(".nav-btn").forEach(b=>{
-        if(!b.id||b.id==="nav-uname") return;
-        b.style.display="none";
-      });
-      document.querySelector(".type-tabs")?.remove();
-      const banner=document.createElement("div");
-      banner.style.cssText="background:linear-gradient(135deg,rgba(77,217,172,.15),rgba(91,163,245,.15));border:1.5px solid rgba(77,217,172,.3);border-radius:12px;padding:10px 16px;text-align:center;font-size:.82rem;color:#2A9D6A;font-weight:700;margin-bottom:16px;max-width:900px;margin-left:auto;margin-right:auto";
-      banner.textContent="📖 Estás viendo el curso en modo público — tu progreso no se guardará";
-      document.querySelector(".section-mooc.active")?.prepend(banner)||document.querySelector(".section-mooc")?.prepend(banner);
-    },600);
     toast("📖 Modo curso público");
   }).catch(()=>{
     document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif">
