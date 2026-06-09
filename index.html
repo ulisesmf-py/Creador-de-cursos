@@ -544,6 +544,72 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
 </div>
 
 <!-- ══ PREVIEW NAVEGABLE ══ -->
+
+<!-- ══ LOGIN / LOBBY ══ -->
+<div id="screen-login" class="page">
+
+  <!-- Teacher login overlay (Firebase Auth) -->
+  <div id="teacher-login-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(74,63,92,.5);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+    <div style="background:white;border-radius:24px;padding:32px;max-width:380px;width:90%;box-shadow:0 24px 60px rgba(100,70,140,.25);animation:fadeUp .3s ease;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:8px">👩‍🏫</div>
+      <div style="font-family:'Pacifico',cursive;font-size:1.4rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Acceso Docente</div>
+      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:22px">Inicia sesión con tu cuenta</p>
+      <div style="position:relative;margin-bottom:10px">
+        <input id="teacher-email-input" type="text" placeholder="usuario"
+          style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:150px;"
+          onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
+          onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+          onkeydown="if(event.key==='Enter')document.getElementById('teacher-pass-input').focus()">
+        <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.8rem;color:#A99EBD;pointer-events:none">@master.blackai.com</span>
+      </div>
+      <input id="teacher-pass-input" type="password" placeholder="Contraseña"
+        style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box;"
+        onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
+        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+        onkeydown="if(event.key==='Enter')doTeacherLogin()">
+      <div id="teacher-login-err" style="display:none;background:#FFE8EC;border:1.5px solid #FFB3C0;border-radius:10px;padding:8px 12px;color:#D45B6A;font-size:.84rem;font-weight:600;margin-bottom:10px">⚠️ Credenciales incorrectas</div>
+      <button onclick="doTeacherLogin()" style="width:100%;padding:11px;border-radius:14px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-size:.93rem;font-weight:800;cursor:pointer">Entrar 🌟</button>
+      <button onclick="document.getElementById('teacher-login-overlay').style.display='none'" style="margin-top:10px;background:none;border:none;color:var(--text-soft);font-family:'Nunito',sans-serif;font-size:.82rem;cursor:pointer">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Lobby principal -->
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 20px 60px">
+    <div style="text-align:center;margin-bottom:36px;max-width:600px">
+      <div style="font-size:3rem;margin-bottom:8px;animation:float 3s ease-in-out infinite">🌸</div>
+      <div style="font-family:'Pacifico',cursive;font-size:2rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px">EVA Pedagogía</div>
+      <p style="color:var(--text-mid);font-size:.95rem">Elige tu sesión de equipo para comenzar a colaborar</p>
+    </div>
+    <div id="sessions-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;width:100%;max-width:960px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text-soft);font-size:.9rem;grid-column:1/-1">⏳ Cargando sesiones...</div>
+    </div>
+    <button onclick="document.getElementById('teacher-login-overlay').style.display='flex'"
+      style="position:fixed;bottom:16px;right:16px;background:rgba(212,184,255,.2);border:1.5px solid rgba(212,184,255,.4);border-radius:50px;padding:6px 14px;font-family:'Nunito',sans-serif;font-size:.76rem;font-weight:700;color:var(--accent2);cursor:pointer;z-index:10">
+      👩‍🏫 Docente
+    </button>
+  </div>
+</div>
+
+<!-- MODAL: ingresar a sesión — solo tarjetas + contraseña -->
+<div class="modal-overlay" id="modal-join-session">
+  <div class="modal-box" style="max-width:400px;text-align:center;background:white">
+    <div id="join-session-icon" style="font-size:2.8rem;margin-bottom:8px">🌸</div>
+    <div id="join-session-name" style="font-family:'Pacifico',cursive;font-size:1.3rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Equipo 1</div>
+    <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:14px">Inicia sesión con tu cuenta</p>
+    <div id="join-session-students" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+    <input id="join-pass-input" type="password" placeholder="Contraseña"
+      style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:10px;box-sizing:border-box;"
+      onfocus="this.style.borderColor='#FF8FA3';this.style.background='white'"
+      onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
+      onkeydown="if(event.key==='Enter')doJoinSession()">
+    <div id="join-session-err" style="display:none;color:#D45B6A;font-size:.82rem;font-weight:600;margin-bottom:8px;padding:6px 10px;background:#FFE8EC;border-radius:8px"></div>
+    <div class="modal-actions" style="justify-content:center;gap:10px">
+      <button class="modal-cancel" onclick="cM('modal-join-session')">Cancelar</button>
+      <button class="modal-confirm" onclick="doJoinSession()">Entrar 🌸</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ APP ══ -->
 <div id="screen-app" class="page">
   <div class="hero">
