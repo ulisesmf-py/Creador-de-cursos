@@ -544,122 +544,6 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
 </div>
 
 <!-- ══ PREVIEW NAVEGABLE ══ -->
-<div class="preview-overlay" id="preview-overlay">
-  <div class="preview-topbar">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <h3>👁 Vista previa del alumno</h3>
-      <div class="prev-nav" id="prev-nav"></div>
-      <div class="prev-mod-name" id="prev-mod-name"></div>
-    </div>
-    <button class="preview-close" onclick="closePreview()">✕ Cerrar</button>
-  </div>
-  <div class="preview-frame">
-    <div class="preview-inner">
-      <div class="prev-sidebar">
-        <div class="prev-side-col" id="prev-sidebar-col"></div>
-        <div class="prev-main-col" id="prev-main-col"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ NAV ══ -->
-<nav id="main-nav" style="display:none">
-  <div class="nav-brand">🌸 EVA Pedagogía</div>
-  <div class="nav-right">
-    <button class="nav-btn guide" onclick="oM('guide-overlay')">📚 Guía EVA</button>
-    <button id="manual-save-btn" onclick="manualSave()" style="display:none;padding:6px 13px;border-radius:11px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:700;background:linear-gradient(135deg,#B8F0D8,#B8DCFF);color:#2A7A5A;transition:all .2s" title="Guardar progreso">💾 Guardar</button>
-    <div style="position:relative">
-      <button onclick="toggleDesignPicker()" style="padding:6px 13px;border-radius:11px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:700;background:linear-gradient(135deg,#FFD4B8,#D4B8FF);color:#4A3F5C">🎨 Estilo</button>
-      <div id="design-picker-menu" style="display:none;position:absolute;top:calc(100%+8px);right:0;background:white;border-radius:16px;padding:12px;box-shadow:0 12px 40px #EDD8F0;z-index:200;min-width:220px">
-        <p style="font-size:.73rem;font-weight:700;color:#A99EBD;margin-bottom:9px;text-align:center">Elige el estilo de tu curso</p>
-        <div id="design-opts-list" style="display:flex;flex-direction:column;gap:6px"></div>
-        <div style="border-top:1.5px solid rgba(212,184,255,.2);margin-top:10px;padding-top:9px">
-          <p style="font-size:.71rem;font-weight:700;color:#A99EBD;margin-bottom:7px">Colores del estilo:</p>
-          <div id="design-color-swatches" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-        </div>
-      </div>
-    </div>
-    <div class="user-bar" onclick="logout()" title="Salir">
-      <div class="user-avatar" id="nav-avatar">G</div>
-      <div class="user-name" id="nav-uname">Grecia</div>
-      <span style="font-size:.72rem;color:var(--text-soft);margin-left:2px">↩</span>
-    </div>
-  </div>
-</nav>
-
-<!-- ══ PANTALLA DE SESIONES (reemplaza login individual) ══ -->
-<div id="screen-login" class="page">
-  <!-- TEACHER LOGIN — Firebase Auth -->
-  <div id="teacher-login-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(74,63,92,.5);backdrop-filter:blur(8px);align-items:center;justify-content:center">
-    <div style="background:white;border-radius:24px;padding:32px;max-width:380px;width:90%;box-shadow:0 24px 60px rgba(100,70,140,.25);animation:fadeUp .3s ease;text-align:center">
-      <div style="font-size:2.5rem;margin-bottom:8px">👩‍🏫</div>
-      <div style="font-family:'Pacifico',cursive;font-size:1.4rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Acceso Docente</div>
-      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:22px">Inicia sesión con tu cuenta</p>
-      <div style="position:relative;margin-bottom:10px">
-        <input id="teacher-email-input" type="text" placeholder="usuario"
-          style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;box-sizing:border-box;padding-right:150px;"
-          onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
-          onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
-          onkeydown="if(event.key==='Enter')document.getElementById('teacher-pass-input').focus()">
-        <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.8rem;color:#A99EBD;pointer-events:none">@master.blackai.com</span>
-      </div>
-      <input id="teacher-pass-input" type="password" placeholder="Contraseña"
-        style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:12px;box-sizing:border-box;"
-        onfocus="this.style.borderColor='#C77DFF';this.style.background='white'"
-        onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
-        onkeydown="if(event.key==='Enter')doTeacherLogin()">
-      <div id="teacher-login-err" style="display:none;background:#FFE8EC;border:1.5px solid #FFB3C0;border-radius:10px;padding:8px 12px;color:#D45B6A;font-size:.84rem;font-weight:600;margin-bottom:10px">⚠️ Credenciales incorrectas</div>
-      <button onclick="doTeacherLogin()" style="width:100%;padding:11px;border-radius:14px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-size:.93rem;font-weight:800;cursor:pointer">Entrar 🌟</button>
-      <button onclick="document.getElementById('teacher-login-overlay').style.display='none'" style="margin-top:10px;background:none;border:none;color:var(--text-soft);font-family:'Nunito',sans-serif;font-size:.82rem;cursor:pointer">Cancelar</button>
-    </div>
-  </div>
-
-  <!-- LOBBY PRINCIPAL -->
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 20px 60px">
-    <!-- Header del lobby -->
-    <div style="text-align:center;margin-bottom:36px;max-width:600px">
-      <div style="font-size:3rem;margin-bottom:8px;animation:float 3s ease-in-out infinite">🌸</div>
-      <div style="font-family:'Pacifico',cursive;font-size:2rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px">EVA Pedagogía</div>
-      <p style="color:var(--text-mid);font-size:.95rem">Elige tu sesión de equipo para comenzar a colaborar</p>
-    </div>
-
-    <!-- Grid de sesiones -->
-    <div id="sessions-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;width:100%;max-width:960px;margin-bottom:24px">
-      <!-- Se genera dinámicamente desde Firebase -->
-      <div style="display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text-soft);font-size:.9rem;grid-column:1/-1">⏳ Cargando sesiones...</div>
-    </div>
-
-    <!-- Botón oculto para profe (esquina) -->
-    <button onclick="document.getElementById('teacher-login-overlay').style.display='flex'" 
-      style="position:fixed;bottom:16px;right:16px;background:rgba(212,184,255,.2);border:1.5px solid rgba(212,184,255,.4);border-radius:50px;padding:6px 14px;font-family:'Nunito',sans-serif;font-size:.76rem;font-weight:700;color:var(--accent2);cursor:pointer;z-index:10">
-      👩‍🏫 Docente
-    </button>
-  </div>
-</div>
-
-<!-- MODAL: ingresar a sesión — solo tarjetas + contraseña -->
-<div class="modal-overlay" id="modal-join-session">
-  <div class="modal-box" style="max-width:400px;text-align:center;background:white">
-    <div id="join-session-icon" style="font-size:2.8rem;margin-bottom:8px">🌸</div>
-    <div id="join-session-name" style="font-family:'Pacifico',cursive;font-size:1.3rem;background:var(--btn-bg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">Equipo 1</div>
-    <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:14px">Inicia sesión con tu cuenta</p>
-    <!-- Tarjetas de alumnas de esta sesión -->
-    <div id="join-session-students" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
-    <!-- Solo contraseña -->
-    <input id="join-pass-input" type="password" placeholder="Contraseña"
-      style="width:100%;padding:12px 16px;border-radius:13px;border:2px solid #EDD8F0;background:#FFFBF0;font-family:'Nunito',sans-serif;font-size:.93rem;color:#4A3F5C;outline:none;margin-bottom:10px;box-sizing:border-box;"
-      onfocus="this.style.borderColor='#FF8FA3';this.style.background='white'"
-      onblur="this.style.borderColor='#EDD8F0';this.style.background='#FFFBF0'"
-      onkeydown="if(event.key==='Enter')doJoinSession()">
-    <div id="join-session-err" style="display:none;color:#D45B6A;font-size:.82rem;font-weight:600;margin-bottom:8px;padding:6px 10px;background:#FFE8EC;border-radius:8px"></div>
-    <div class="modal-actions" style="justify-content:center;gap:10px">
-      <button class="modal-cancel" onclick="cM('modal-join-session')">Cancelar</button>
-      <button class="modal-confirm" onclick="doJoinSession()">Entrar 🌸</button>
-    </div>
-  </div>
-</div>
-
 <!-- ══ APP ══ -->
 <div id="screen-app" class="page">
   <div class="hero">
@@ -679,7 +563,7 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
     <div class="sec-header">
       <div class="sec-title">📚 <span>MOOC</span></div>
       <div class="sec-actions">
-        <button class="preview-btn" onclick="openPreview('mooc')">👁 Vista previa</button>
+        
         <button onclick="publishCourse()" id="publish-btn"
           style="display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border-radius:11px;border:none;background:linear-gradient(135deg,#4DD9AC,#5BA3F5);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.81rem;cursor:pointer">
           🚀 Publicar
@@ -721,7 +605,7 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
   <div id="sec-micro" class="section-micro">
     <div class="sec-header" style="padding-left:24px;padding-right:24px">
       <div class="sec-title">⚡ <span>Microlearning</span></div>
-      <div class="sec-actions"><button class="preview-btn" onclick="openPreview('micro')">👁 Vista previa</button></div>
+      <div class="sec-actions"></div>
     </div>
     <div class="micro-layout">
       <div class="micro-sidenav card">
@@ -784,7 +668,7 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
   <div id="sec-blearning" class="section-blearning">
     <div class="sec-header">
       <div class="sec-title">🏫 <span>B-Learning</span></div>
-      <div class="sec-actions"><button class="preview-btn" onclick="openPreview('blearning')">👁 Vista previa</button></div>
+      <div class="sec-actions"></div>
     </div>
     <div class="cl-header"><h2 id="cl-title" contenteditable="true">🌸 Pedagogía &amp; Tecnología Educativa · 2025</h2></div>
     <div class="cl-tabs">
@@ -870,6 +754,17 @@ body.design-baile .guide-hdr h2{font-family:'Dancing Script',cursive!important;}
     </div>
 
     <!-- Registro de actividad -->
+    <!-- ══ CALIFICACIONES DEL CURSO ══ -->
+    <div style="background:var(--card-bg);border-radius:var(--radius);box-shadow:0 6px 24px var(--shadow);padding:22px;margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="font-size:1.05rem;font-weight:800;color:#4A3F5C">⭐ Calificaciones del curso</h3>
+        <button onclick="loadAllRatings()" style="padding:7px 14px;border-radius:10px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.8rem;cursor:pointer">🔄 Actualizar</button>
+      </div>
+      <div id="all-ratings-panel">
+        <p style="color:#A99EBD;font-size:.85rem;text-align:center;padding:20px">Haz clic en Actualizar para ver las calificaciones</p>
+      </div>
+    </div>
+
     <div id="activity-log-panel" style="display:none;background:var(--card-bg);border-radius:var(--radius);box-shadow:0 6px 24px var(--shadow);padding:22px;margin-top:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <h3 style="font-size:1.05rem;font-weight:800;color:#4A3F5C">📋 Registro de actividad — todos los equipos</h3>
@@ -1833,6 +1728,7 @@ function enterTeacherDashboard(){
   loadTeacherDashboard();
   loadSessionEditor();
   loadStudentManager();
+  setTimeout(()=>loadAllRatings(), 1500);
 }
 function loadTeacherDashboard(){
   const container=document.getElementById("teacher-sessions-container");
@@ -2042,6 +1938,55 @@ function showAllFeedback(){
       </div>`+html;
     }
     document.getElementById("feedback-content").innerHTML=html;
+  });
+}
+
+function loadAllRatings(){
+  const panel=document.getElementById("all-ratings-panel");
+  if(!panel) return;
+  panel.innerHTML=`<p style="color:#A99EBD;font-size:.85rem;text-align:center;padding:20px">⏳ Cargando...</p>`;
+  db.ref("pedagogia/ratings").once("value").then(snap=>{
+    const all=snap.val()||{};
+    const sessions=window._sessionCache||{};
+    let html="",total=0,sumStars=0;
+    Object.entries(all).forEach(([sid,entries])=>{
+      const list=Object.values(entries||{});
+      if(!list.length) return;
+      total+=list.length;
+      sumStars+=list.reduce((a,r)=>a+(r.stars||0),0);
+      const avg=(list.reduce((a,r)=>a+(r.stars||0),0)/list.length).toFixed(1);
+      const session=sessions[sid];
+      html+=`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1.5px solid rgba(212,184,255,.15)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:1.1rem">${session?.icon||"🌸"}</span>
+          <span style="font-weight:800;font-size:.9rem;color:#4A3F5C">${session?.nombre||sid}</span>
+          <span style="margin-left:auto;font-size:.8rem;color:#F0A500;font-weight:700">${avg}⭐ · ${list.length} resp.</span>
+        </div>
+        ${list.map(r=>`
+          <div style="background:#FFFBF0;border-radius:10px;padding:9px 13px;border:1.5px solid rgba(212,184,255,.2);margin-bottom:6px;display:flex;gap:10px;align-items:flex-start">
+            <div style="flex:1">
+              <div style="font-size:.82rem;font-weight:700;color:#4A3F5C">${r.by||"Alumna"} <span style="color:#F0A500;font-size:.78rem">${"⭐".repeat(r.stars||0)}</span></div>
+              ${r.comment?`<p style="font-size:.78rem;color:#7A6E8A;margin:3px 0 0;font-style:italic">"${r.comment}"</p>`:""}
+            </div>
+          </div>`).join("")}
+      </div>`;
+    });
+    if(!html){
+      panel.innerHTML=`<p style="color:#A99EBD;font-size:.85rem;text-align:center;padding:20px">Ningún alumno ha calificado el curso todavía. Publica el curso y comparte el enlace para recibir calificaciones.</p>`;
+      return;
+    }
+    const globalAvg=total?(sumStars/total).toFixed(1):"-";
+    panel.innerHTML=`
+      <div style="display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(77,217,172,.08),rgba(91,163,245,.08));border-radius:12px;padding:14px 18px;margin-bottom:18px">
+        <div style="font-size:2.5rem;font-weight:800;color:#4A3F5C">${globalAvg}</div>
+        <div>
+          <div style="font-size:1.1rem;color:#F0A500">${"⭐".repeat(Math.round(parseFloat(globalAvg)))}${"☆".repeat(5-Math.round(parseFloat(globalAvg)))}</div>
+          <div style="font-size:.75rem;color:#A99EBD">${total} calificación${total!==1?"es":""} totales</div>
+        </div>
+      </div>
+      ${html}`;
+  }).catch(()=>{
+    panel.innerHTML=`<p style="color:#E05A5A;font-size:.85rem;text-align:center;padding:20px">⚠️ Error al cargar calificaciones</p>`;
   });
 }
 
@@ -3010,25 +2955,37 @@ function submitPublicQuiz(total){
 /* ══ PUBLICAR CURSO ══ */
 function publishCourse(){
   if(!currentSession) return;
-  if(!confirm("¿Publicar el curso? Los alumnos podrán acceder con un link directo sin necesidad de login.")) return;
+  if(!confirm("¿Publicar el curso? Cualquier persona con el enlace podrá acceder sin login.")) return;
   saveSession(false).then(()=>{
     db.ref("pedagogia/s/"+currentSession.id+"/published").set(true).then(()=>{
       const publicUrl=window.location.origin+window.location.pathname+"?curso="+currentSession.id;
       const btn=document.getElementById("publish-btn");
       if(btn){btn.textContent="✅ Publicado";btn.style.background="linear-gradient(135deg,#4DD9AC,#2A9D6A)";}
-      // Show URL modal
+
+      // Show options modal
       const d=document.createElement("div");
       d.style.cssText="position:fixed;inset:0;background:rgba(74,63,92,.5);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)";
-      d.innerHTML=`<div style="background:white;border-radius:20px;padding:28px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(74,63,92,.25);text-align:center">
-        <div style="font-size:2rem;margin-bottom:8px">🚀</div>
-        <h3 style="font-family:'Pacifico',cursive;font-size:1.1rem;color:#4A3F5C;margin-bottom:6px">¡Curso publicado!</h3>
-        <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:16px">Comparte este enlace — cualquier persona puede acceder sin login:</p>
-        <div style="background:#F8F4FF;border-radius:11px;padding:10px 14px;margin-bottom:14px;word-break:break-all;font-size:.78rem;color:#4A3F5C;border:1.5px solid #EDD8F0">${publicUrl}</div>
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button onclick="navigator.clipboard.writeText('${publicUrl}').then(()=>toast('✅ Copiado'))" style="padding:9px 18px;border-radius:11px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer">📋 Copiar link</button>
-          <button onclick="this.closest('[style*=fixed]').remove()" style="padding:9px 18px;border-radius:11px;border:1.5px solid #EDD8F0;background:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer;color:#7A6E8A">Cerrar</button>
-        </div>
-      </div>`;
+      d.innerHTML=`
+        <div style="background:white;border-radius:20px;padding:28px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(74,63,92,.25);text-align:center">
+          <div style="font-size:2rem;margin-bottom:8px">🚀</div>
+          <h3 style="font-family:'Pacifico',cursive;font-size:1.1rem;color:#4A3F5C;margin-bottom:6px">¡Curso publicado!</h3>
+          <p style="font-size:.84rem;color:#7A6E8A;margin-bottom:14px">Comparte este enlace — cualquier persona puede acceder sin login:</p>
+          <div style="background:#F8F4FF;border-radius:11px;padding:10px 14px;margin-bottom:18px;word-break:break-all;font-size:.78rem;color:#4A3F5C;border:1.5px solid #EDD8F0;text-align:left" id="pub-url-box">${publicUrl}</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button onclick="navigator.clipboard.writeText('${publicUrl}').then(()=>{toast('✅ Enlace copiado');this.textContent='✅ Copiado';})"
+              style="padding:10px 20px;border-radius:11px;border:none;background:var(--btn-bg);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer">
+              📋 Copiar enlace
+            </button>
+            <button onclick="window.open('${publicUrl}','_blank')"
+              style="padding:10px 20px;border-radius:11px;border:none;background:linear-gradient(135deg,#4DD9AC,#5BA3F5);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer">
+              🌐 Abrir curso
+            </button>
+            <button onclick="this.closest('[style*=fixed]').remove()"
+              style="padding:10px 20px;border-radius:11px;border:1.5px solid #EDD8F0;background:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:.84rem;cursor:pointer;color:#7A6E8A">
+              Cerrar
+            </button>
+          </div>
+        </div>`;
       document.body.appendChild(d);
     });
   });
@@ -3725,150 +3682,6 @@ function delEl(id){
 
 /* ══ VISTA PREVIA NAVEGABLE ══ */
 let previewMods=[], previewIdx=0;
-function openPreview(section){
-  const snap=buildSessionSnapshot();
-  const data={
-    modData:JSON.parse(JSON.stringify(modData)),
-    courseName:document.getElementById("course-name")?.textContent||"Curso",
-    units:snap.units||[],
-    allMods:snap.allMods||[],
-    previewMods:Array.from(document.querySelectorAll(".mod-item")).map(m=>m.id),
-    progreso:{},
-  };
-  document.querySelectorAll(".mod-item").forEach(m=>{
-    data.progreso[m.id]=m.querySelector(".mod-dot")?.classList.contains("done")?"done":"pending";
-  });
-  const html=buildPreviewHTML(data);
-  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
-  const url=URL.createObjectURL(blob);
-  const pw=window.open(url,"_blank");
-  if(!pw){const a=document.createElement("a");a.href=url;a.target="_blank";a.click();}
-  toast("👁 Vista previa abierta");
-}
-
-function buildPreviewHTML(data){
-  var b64=btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  var H=[];
-  H.push('<!DOCTYPE html><html lang="es"><head>');
-  H.push('<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">');
-  H.push('<title>Vista previa — '+data.courseName+'</title>');
-  H.push('<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">');
-  H.push('<style>');
-  H.push('*{box-sizing:border-box;margin:0;padding:0}');
-  H.push('body{font-family:Nunito,sans-serif;background:#FFFBF0;color:#4A3F5C;min-height:100vh}');
-  H.push('.tb{background:rgba(255,255,255,.96);backdrop-filter:blur(16px);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid rgba(255,188,202,.3);position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(200,160,200,.18)}');
-  H.push('.ly{display:grid;grid-template-columns:260px 1fr;gap:16px;max-width:1280px;margin:0 auto;padding:20px}');
-  H.push('.sb{background:white;border-radius:16px;padding:16px 12px;box-shadow:0 4px 20px rgba(200,160,200,.15);position:sticky;top:74px;height:fit-content;max-height:calc(100vh - 90px);overflow-y:auto}');
-  H.push('.mn{background:white;border-radius:16px;padding:28px 32px;box-shadow:0 4px 20px rgba(200,160,200,.15)}');
-  H.push('.mc{padding:8px 10px;border-radius:10px;border:1.5px solid rgba(212,184,255,.2);background:white;cursor:pointer;margin-bottom:4px;display:flex;align-items:center;gap:8px;transition:all .2s}');
-  H.push('.mc:hover{border-color:#FF8FA3;background:rgba(255,143,163,.05)}');
-  H.push('.mc.on{background:linear-gradient(135deg,#FFBCCA,#D4B8FF);border-color:transparent}');
-  H.push('.mc.on span,.mc.on .ml{color:white!important}');
-  H.push('.nb{padding:7px 16px;border-radius:10px;border:none;font-family:Nunito,sans-serif;font-size:.8rem;font-weight:700;cursor:pointer}');
-  H.push('iframe{border:none;border-radius:10px;display:block;width:100%}');
-  H.push('ul{padding-left:20px}ul li{margin-bottom:5px;font-size:.9rem;line-height:1.7}');
-  H.push('.qo{display:block;width:100%;padding:9px 12px;border:1.5px solid #EDD8F0;border-radius:9px;margin-bottom:6px;cursor:pointer;background:white;font-family:Nunito,sans-serif;font-size:.85rem;text-align:left;transition:all .2s}');
-  H.push('@media(max-width:700px){.ly{grid-template-columns:1fr}.sb{position:static;max-height:none}}');
-  H.push('</style></head><body>');
-  // Data element
-  H.push('<div id="__d" style="display:none">'+b64+'</div>');
-  // Topbar
-  H.push('<div class="tb">');
-  H.push('<div style="font-family:Pacifico,cursive;font-size:1rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Vista previa — '+data.courseName+'</div>');
-  H.push('<div style="display:flex;gap:8px;align-items:center">');
-  H.push('<button class="nb" id="btnP" onclick="nav(-1)" style="background:white;border:1.5px solid #EDD8F0;color:#7A6E8A">&#8592; Ant.</button>');
-  H.push('<span id="ctr" style="font-size:.78rem;color:#A99EBD;min-width:40px;text-align:center">-/-</span>');
-  H.push('<button class="nb" id="btnN" onclick="nav(1)" style="background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white">Sig. &#8594;</button>');
-  H.push('<button class="nb" onclick="window.close()" style="background:rgba(255,100,120,.1);color:#E05A5A;margin-left:6px">&#10005;</button>');
-  H.push('</div></div>');
-  // Layout
-  H.push('<div class="ly"><div class="sb" id="sbx"></div><div class="mn" id="mcx"><p style="color:#A99EBD;text-align:center;padding:40px">Cargando...</p></div></div>');
-  // Script
-  H.push('<'+'script>');
-  H.push('(function(){');
-  H.push('var raw=document.getElementById("__d").textContent.trim();');
-  H.push('var D=JSON.parse(decodeURIComponent(escape(atob(raw))));');
-  H.push('var md=D.modData||{},mods=D.previewMods||[],prog=D.progreso||{};');
-  H.push('var allMods=D.allMods||[],units=D.units||[],cname=D.courseName||"Curso";');
-  H.push('var idx=0;');
-  H.push('var IC={intro:"📋",video:"🎬",lectura:"📄",foro:"💬",actividad:"🎮",quiz:"🧩",texto:"📝"};');
-  H.push('var CO={intro:"#D4734A",video:"#3A7BC8",lectura:"#2A9D6A",foro:"#B08A00",actividad:"#8A4AC8",quiz:"#D4455A",texto:"#5B8C5A"};');
-  H.push('var BG={intro:"rgba(212,115,74,.1)",video:"rgba(58,123,200,.1)",lectura:"rgba(42,157,106,.1)",foro:"rgba(176,138,0,.1)",actividad:"rgba(138,74,200,.1)",quiz:"rgba(212,68,90,.1)",texto:"rgba(91,140,90,.1)"};');
-  H.push('function ytId(u){var m=(u||"").match(/(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null;}');
-  H.push('function dEmbed(u){var m=(u||"").match(/drive\\.google\\.com\\/file\\/d\\/([a-zA-Z0-9_-]+)/);return m?"https://drive.google.com/file/d/"+m[1]+"/preview":u;}');
-  H.push('function sidebar(){');
-  H.push('  var h="";');
-  H.push('  if(units.length){');
-  H.push('    units.forEach(function(u){');
-  H.push('      h+="<div style=\\"font-size:.6rem;font-weight:800;color:#A99EBD;text-transform:uppercase;letter-spacing:.7px;padding:6px 4px 3px\\">"+u.name+"</div>";');
-  H.push('      allMods.filter(function(m){return m.unitId===u.id;}).forEach(function(am){');
-  H.push('        var i=mods.indexOf(am.id),done=prog[am.id]==="done";');
-  H.push('        h+="<div class=\\"mc"+(idx===i?" on":"")+"\\""+" onclick=\\"go("+i+")\\">"');
-  H.push('          +"<div style=\\"width:16px;height:16px;border-radius:50%;background:"+(done?"linear-gradient(135deg,#B8F0D8,#4DD9AC)":"#F0E8F8")+";display:flex;align-items:center;justify-content:center;font-size:.6rem;color:"+(done?"white":"#A99EBD")+"\\"> "+(done?"✓":"○")+"</div>"');
-  H.push('          +"<span class=\\"ml\\" style=\\"font-size:.76rem;font-weight:600;color:#4A3F5C\\">"+am.label+"</span></div>";');
-  H.push('      });');
-  H.push('    });');
-  H.push('  } else {');
-  H.push('    mods.forEach(function(mid,i){');
-  H.push('      var d=md[mid]||{};');
-  H.push('      h+="<div class=\\"mc"+(idx===i?" on":"")+"\\""+" onclick=\\"go("+i+")\\">"');
-  H.push('        +"<span class=\\"ml\\" style=\\"font-size:.76rem;font-weight:600;color:#4A3F5C\\">"+(d.title||mid)+"</span></div>";');
-  H.push('    });');
-  H.push('  }');
-  H.push('  var title="<div style=\\"font-family:Pacifico,cursive;font-size:.9rem;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px\\">"+cname+"</div>";');
-  H.push('  document.getElementById("sbx").innerHTML=title+h;');
-  H.push('}');
-  H.push('function render(){');
-  H.push('  var mid=mods[idx],d=md[mid]||{};');
-  H.push('  if(!mid||!d.type){document.getElementById("mcx").innerHTML="<p style=\\"color:#A99EBD;text-align:center;padding:40px\\">Sin contenido</p>";return;}');
-  H.push('  var col=CO[d.type]||"#888",bg=BG[d.type]||"rgba(0,0,0,.06)",h="";');
-  H.push('  h+="<div style=\\"display:inline-block;padding:2px 12px;border-radius:12px;font-size:.72rem;font-weight:700;background:"+bg+";color:"+col+";margin-bottom:12px\\">"+(IC[d.type]||"")+" "+d.type+"</div>";');
-  H.push('  h+="<h2 style=\\"font-size:1.25rem;font-weight:800;margin-bottom:8px\\">"+(d.title||"")+"</h2>";');
-  H.push('  h+="<p style=\\"font-size:.9rem;color:#7A6E8A;line-height:1.7;margin-bottom:14px\\">"+(d.desc||"")+"</p>";');
-  H.push('  if(d.objectives&&d.objectives.length){h+="<ul style=\\"margin-bottom:14px\\">";d.objectives.forEach(function(o){h+="<li>"+o+"</li>";});h+="</ul>";}');
-  H.push('  if(d.type==="video"&&d.url){var yt=ytId(d.url);h+=yt?"<div style=\\"position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:14px 0\\"><iframe src=\\"https://www.youtube.com/embed/"+yt+"\\" style=\\"position:absolute;inset:0;width:100%;height:100%;border:none\\" allowfullscreen></iframe></div>":"<div style=\\"position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;margin:14px 0\\"><iframe src=\\""+d.url+"\\" style=\\"position:absolute;inset:0;width:100%;height:100%;border:none\\" allowfullscreen></iframe></div>";}');
-  H.push('  if(d.type==="lectura"&&d.url) h+="<iframe src=\\""+dEmbed(d.url)+"\\" style=\\"height:1050px;margin:14px 0\\"></iframe>";');
-  H.push('  if(d.type==="actividad"&&d.url) h+="<iframe src=\\""+d.url+"\\" style=\\"height:520px;margin:14px 0\\"></iframe>";');
-  H.push('  if(d.type==="foro") h+="<div style=\\"background:#F8F4FF;border-radius:12px;padding:14px;margin:14px 0\\"><p style=\\"font-size:.84rem;font-weight:700;color:#7A6E8A;margin-bottom:8px\\">💬 Escribe tu participación:</p><textarea style=\\"width:100%;padding:10px;border-radius:10px;border:1.5px solid #EDD8F0;font-family:Nunito,sans-serif;font-size:.85rem;min-height:100px;resize:none;outline:none\\" placeholder=\\"Tu respuesta...\\"></textarea></div>";');
-  H.push('  if(d.type==="quiz"&&d.quiz&&d.quiz.preguntas){d.quiz.preguntas.forEach(function(p,qi){h+="<div style=\\"background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px\\"><p style=\\"font-weight:800;margin-bottom:10px;font-size:.9rem\\">❓ "+p.q+"</p>";p.opts.forEach(function(o,oi){h+="<button class=\\"qo\\" onclick=\\"chk("+qi+","+oi+","+p.correcta+")\\" id=\\"qo"+qi+"_"+oi+"\\">"+o+"</button>";});h+="<div id=\\"qfb"+qi+"\\" style=\\"display:none;padding:7px 10px;border-radius:8px;font-size:.83rem;font-weight:700;margin-top:4px\\"></div></div>";});}');
-  H.push('  if(d.subBlocks&&d.subBlocks.length){d.subBlocks.forEach(function(sb){h+="<div style=\\"background:#F8F4FF;border-radius:12px;padding:16px;margin-bottom:12px\\"><p style=\\"font-size:.84rem;font-weight:800;margin-bottom:10px\\">"+(IC[sb.type]||"📋")+" "+(sb.title||"")+"</p>";if(sb.type==="video"&&sb.url){var yt2=ytId(sb.url);h+=yt2?"<div style=\\"position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden\\"><iframe src=\\"https://www.youtube.com/embed/"+yt2+"\\" style=\\"position:absolute;inset:0;width:100%;height:100%;border:none\\" allowfullscreen></iframe></div>":"<iframe src=\\""+sb.url+"\\" style=\\"height:300px\\"></iframe>";}else if(sb.type==="lectura"&&sb.url)h+="<iframe src=\\""+dEmbed(sb.url)+"\\" style=\\"height:1050px\\"></iframe>";else if(sb.type==="actividad"&&sb.url)h+="<iframe src=\\""+sb.url+"\\" style=\\"height:480px\\"></iframe>";else if(sb.isRichText&&sb.desc)h+="<div style=\\"font-size:.88rem;line-height:1.8\\">"+sb.desc+"</div>";else if(sb.desc)h+="<p style=\\"font-size:.88rem;color:#7A6E8A;line-height:1.7\\">"+sb.desc+"</p>";h+="</div>";});}');
-  H.push('  var last=idx===mods.length-1;');
-  H.push('  h+="<div style=\\"margin-top:24px;padding-top:14px;border-top:1.5px solid #F0E8F8;display:flex;justify-content:"+(last?"center":"flex-end")+"\\">";');
-  H.push('  h+=last?"<span style=\\"font-size:.9rem;color:#A99EBD\\">🎉 Fin del curso</span>":"<button onclick=\\"nav(1)\\" style=\\"padding:9px 22px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFBCCA,#D4B8FF);color:white;font-family:Nunito,sans-serif;font-weight:700;font-size:.85rem;cursor:pointer\\">Siguiente →</button>";');
-  H.push('  h+="</div>";');
-  H.push('  document.getElementById("mcx").innerHTML=h;');
-  H.push('  document.getElementById("ctr").textContent=(idx+1)+"/"+mods.length;');
-  H.push('  document.querySelectorAll(".mc").forEach(function(el,i){el.classList.toggle("on",i===idx);});');
-  H.push('  document.getElementById("btnP").disabled=idx===0;');
-  H.push('  document.getElementById("btnN").disabled=last;');
-  H.push('}');
-  H.push('function nav(d){idx=Math.max(0,Math.min(mods.length-1,idx+d));sidebar();render();}');
-  H.push('function go(i){idx=i;sidebar();render();}');
-  H.push('function chk(qi,oi,correcta){var fb=document.getElementById("qfb"+qi);var ok=oi===correcta;var cb=document.getElementById("qo"+qi+"_"+correcta);var wb=document.getElementById("qo"+qi+"_"+oi);if(cb){cb.style.border="1.5px solid #4DD9AC";cb.style.background="rgba(77,217,172,.12)";}if(!ok&&wb){wb.style.border="1.5px solid #F87";wb.style.background="rgba(255,136,119,.1)";}if(fb){fb.style.display="block";fb.style.background=ok?"rgba(77,217,172,.15)":"rgba(255,136,119,.15)";fb.style.color=ok?"#2A9D6A":"#D45B6A";fb.textContent=ok?"✅ ¡Correcto!":"❌ Incorrecto";}document.querySelectorAll("[id^=\\"qo"+qi+"_\\"]").forEach(function(b){b.onclick=null;b.style.cursor="default";});}');
-  H.push('sidebar();render();');
-  H.push('})();');
-  H.push('</'+'script>');
-  H.push('</body></html>');
-  return H.join('\n');
-}
-
-function closePreview(){
-  const o=document.getElementById("preview-overlay");
-  if(o){o.classList.remove("open");DESIGN_CLASSES.forEach(c=>o.classList.remove(c));}
-}
-
-function renderPreviewNav(){
-  const nav=document.getElementById("prev-nav");
-  nav.innerHTML=`
-    <button class="prev-nav-btn" onclick="navigatePreview(-1)" ${previewIdx===0?"disabled":""}>← Anterior</button>
-    <span style="font-size:.76rem;color:var(--text-soft)">${previewIdx+1} / ${previewMods.length}</span>
-    <button class="prev-nav-btn nxt" onclick="navigatePreview(1)" ${previewIdx===previewMods.length-1?"disabled":""}>Siguiente →</button>`;
-}
-function navigatePreview(dir){
-  const newIdx=previewIdx+dir;
-  if(newIdx<0||newIdx>=previewMods.length)return;
-  previewIdx=newIdx;renderPreviewMod(previewIdx);
-}
 function renderPreviewMod(idx){
   const modId=previewMods[idx];const d=modData[modId];
   const sideEl=document.getElementById(modId);
